@@ -1,0 +1,106 @@
+---
+interface Props {
+	apiBase?: string;
+	baseUrl?: string;
+	currentSlug?: string;
+}
+
+const {
+	apiBase = "/_emdash/api/plugins/commerce",
+	baseUrl = "/products",
+	currentSlug,
+} = Astro.props;
+---
+
+<nav
+	data-commerce-category-nav
+	data-api-base={apiBase}
+	data-base-url={baseUrl}
+	data-current-slug={currentSlug}
+	aria-label="Product categories"
+>
+	<ul data-commerce-category-list class="commerce-category-list" role="list">
+		<li>
+			<a
+				href={baseUrl}
+				class:list={["commerce-category-link", { "commerce-category-link--active": !currentSlug }]}
+				aria-current={!currentSlug ? "page" : undefined}
+			>
+				All Products
+			</a>
+		</li>
+		<!-- Remaining items populated by JS from the API -->
+	</ul>
+</nav>
+
+<style>
+	.commerce-category-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	/* Nested sub-lists */
+	.commerce-category-list .commerce-category-list {
+		padding-left: 1rem;
+		margin-top: 0.125rem;
+	}
+
+	.commerce-category-link {
+		display: block;
+		padding: 0.4375rem 0.75rem;
+		border-radius: calc(var(--commerce-radius, 0.5rem) / 2);
+		text-decoration: none;
+		font-size: 0.9375rem;
+		color: var(--commerce-text, #1f2937);
+		transition: background 0.15s, color 0.15s;
+	}
+	.commerce-category-link:hover {
+		background: var(--commerce-bg-muted, #f9fafb);
+		color: var(--commerce-primary, #2563eb);
+	}
+	.commerce-category-link--active,
+	.commerce-category-link[aria-current="page"] {
+		background: var(--commerce-primary, #2563eb);
+		color: white;
+		font-weight: 600;
+	}
+	.commerce-category-link--active:hover,
+	.commerce-category-link[aria-current="page"]:hover {
+		background: var(--commerce-primary-hover, #1d4ed8);
+		color: white;
+	}
+
+	/* Category count badge */
+	.commerce-category-count {
+		font-size: 0.75rem;
+		color: inherit;
+		opacity: 0.7;
+		margin-left: 0.25rem;
+	}
+
+	/* Expand/collapse toggle for categories with children */
+	.commerce-category-item { position: relative; }
+	.commerce-category-toggle {
+		position: absolute;
+		right: 0.5rem;
+		top: 50%;
+		transform: translateY(-50%);
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--commerce-text-muted, #6b7280);
+		padding: 0.25rem;
+		display: flex;
+		align-items: center;
+	}
+	.commerce-category-toggle svg {
+		transition: transform 0.2s;
+	}
+	.commerce-category-item[data-expanded="true"] .commerce-category-toggle svg {
+		transform: rotate(90deg);
+	}
+</style>

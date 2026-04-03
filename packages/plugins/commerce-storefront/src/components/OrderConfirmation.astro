@@ -1,0 +1,207 @@
+---
+interface Props {
+	apiBase?: string;
+	continueShoppingUrl?: string;
+}
+
+const {
+	apiBase = "/_emdash/api/plugins/commerce",
+	continueShoppingUrl = "/products",
+} = Astro.props;
+---
+
+<div data-commerce-order-confirmation data-api-base={apiBase}>
+	<div class="commerce-confirmation-header">
+		<div class="commerce-confirmation-icon" aria-hidden="true">
+			<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<circle cx="24" cy="24" r="24" fill="var(--commerce-primary, #2563eb)" opacity="0.1" />
+				<path d="M14 24l8 8 12-16" stroke="var(--commerce-primary, #2563eb)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+		</div>
+		<h1 class="commerce-confirmation-title">Order Confirmed!</h1>
+		<p class="commerce-confirmation-subtitle">
+			Thank you for your order. We'll send a confirmation email shortly.
+		</p>
+	</div>
+
+	<div class="commerce-confirmation-details">
+		<div class="commerce-confirmation-meta">
+			<div class="commerce-meta-item">
+				<span class="commerce-meta-label">Order Number</span>
+				<span data-commerce-order-number class="commerce-meta-value commerce-order-number">—</span>
+			</div>
+			<div class="commerce-meta-item">
+				<span class="commerce-meta-label">Date</span>
+				<span data-commerce-order-date class="commerce-meta-value">—</span>
+			</div>
+			<div class="commerce-meta-item">
+				<span class="commerce-meta-label">Status</span>
+				<span data-commerce-order-status class="commerce-meta-value">—</span>
+			</div>
+		</div>
+
+		<div class="commerce-confirmation-body">
+			<div class="commerce-confirmation-items">
+				<h2 class="commerce-section-title">Items Ordered</h2>
+				<table class="commerce-items-table">
+					<thead>
+						<tr>
+							<th scope="col">Product</th>
+							<th scope="col">Qty</th>
+							<th scope="col">Price</th>
+							<th scope="col">Total</th>
+						</tr>
+					</thead>
+					<tbody data-commerce-items-body>
+						<!-- populated by JS -->
+					</tbody>
+				</table>
+
+				<div class="commerce-order-totals">
+					<div class="commerce-order-row">
+						<span>Subtotal</span>
+						<span data-commerce-subtotal>—</span>
+					</div>
+					<div data-commerce-shipping-row class="commerce-order-row" hidden>
+						<span>Shipping</span>
+						<span data-commerce-shipping-cost>—</span>
+					</div>
+					<div data-commerce-discount-row class="commerce-order-row" hidden>
+						<span>Discount</span>
+						<span data-commerce-discount>—</span>
+					</div>
+					<div class="commerce-order-row commerce-order-row--total">
+						<span>Total</span>
+						<span data-commerce-total>—</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="commerce-confirmation-address">
+				<h2 class="commerce-section-title">Shipping Address</h2>
+				<address data-commerce-shipping-address class="commerce-shipping-address">
+					<!-- populated by JS -->
+				</address>
+			</div>
+		</div>
+	</div>
+
+	<div class="commerce-confirmation-actions">
+		<a href={continueShoppingUrl} data-commerce-btn="primary">Continue Shopping</a>
+	</div>
+</div>
+
+<style>
+	[data-commerce-order-confirmation] {
+		max-width: 56rem;
+		margin: 0 auto;
+		padding: 2rem 1rem;
+	}
+
+	.commerce-confirmation-header {
+		text-align: center;
+		margin-bottom: 2.5rem;
+	}
+	.commerce-confirmation-icon { margin-bottom: 1rem; }
+	.commerce-confirmation-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		color: var(--commerce-text, #1f2937);
+		margin: 0 0 0.5rem;
+	}
+	.commerce-confirmation-subtitle {
+		color: var(--commerce-text-muted, #6b7280);
+		margin: 0;
+	}
+
+	.commerce-confirmation-meta {
+		display: flex;
+		gap: 2rem;
+		justify-content: center;
+		flex-wrap: wrap;
+		background: var(--commerce-bg-muted, #f9fafb);
+		border: 1px solid var(--commerce-border, #e5e7eb);
+		border-radius: var(--commerce-radius, 0.5rem);
+		padding: 1.25rem 1.5rem;
+		margin-bottom: 2rem;
+	}
+	.commerce-meta-item { display: flex; flex-direction: column; gap: 0.25rem; text-align: center; }
+	.commerce-meta-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--commerce-text-muted, #6b7280);
+	}
+	.commerce-meta-value { font-weight: 600; color: var(--commerce-text, #1f2937); }
+	.commerce-order-number { color: var(--commerce-primary, #2563eb); font-size: 1.0625rem; }
+
+	.commerce-confirmation-body {
+		display: grid;
+		gap: 2rem;
+	}
+	@media (min-width: 768px) {
+		.commerce-confirmation-body { grid-template-columns: 1fr 14rem; align-items: start; }
+	}
+
+	.commerce-section-title {
+		font-size: 1.125rem;
+		font-weight: 700;
+		color: var(--commerce-text, #1f2937);
+		margin: 0 0 1rem;
+	}
+
+	.commerce-items-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9375rem;
+		margin-bottom: 1rem;
+	}
+	.commerce-items-table th,
+	.commerce-items-table td {
+		padding: 0.75rem 0.5rem;
+		text-align: left;
+		border-bottom: 1px solid var(--commerce-border, #e5e7eb);
+		color: var(--commerce-text, #1f2937);
+	}
+	.commerce-items-table th {
+		font-weight: 600;
+		font-size: 0.8125rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--commerce-text-muted, #6b7280);
+	}
+
+	.commerce-order-totals { display: flex; flex-direction: column; gap: 0.5rem; }
+	.commerce-order-row {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.9375rem;
+		color: var(--commerce-text, #1f2937);
+	}
+	.commerce-order-row--total {
+		font-weight: 700;
+		font-size: 1.0625rem;
+		padding-top: 0.625rem;
+		border-top: 1px solid var(--commerce-border, #e5e7eb);
+	}
+
+	.commerce-confirmation-address {
+		background: var(--commerce-bg-muted, #f9fafb);
+		border: 1px solid var(--commerce-border, #e5e7eb);
+		border-radius: var(--commerce-radius, 0.5rem);
+		padding: 1.25rem;
+	}
+	.commerce-shipping-address {
+		font-style: normal;
+		font-size: 0.9375rem;
+		line-height: 1.6;
+		color: var(--commerce-text, #1f2937);
+	}
+
+	.commerce-confirmation-actions {
+		margin-top: 2rem;
+		text-align: center;
+	}
+	.commerce-confirmation-actions a { text-decoration: none; }
+</style>
