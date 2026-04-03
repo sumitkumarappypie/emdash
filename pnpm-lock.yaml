@@ -1141,6 +1141,12 @@ importers:
         specifier: workspace:*
         version: link:../../core
 
+  packages/plugins/commerce-stripe:
+    dependencies:
+      emdash:
+        specifier: workspace:*
+        version: link:../../core
+
   packages/plugins/commerce-tax-basic:
     dependencies:
       emdash:

@@ -1,0 +1,34 @@
+{
+	"name": "@emdash-cms/plugin-commerce-stripe",
+	"version": "0.1.0",
+	"description": "Stripe payment provider for EmDash Commerce",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": [
+		"src"
+	],
+	"keywords": [
+		"emdash",
+		"cms",
+		"plugin",
+		"commerce",
+		"stripe",
+		"payment"
+	],
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/commerce-stripe"
+	}
+}
