@@ -1,0 +1,27 @@
+{
+	"name": "@emdash-cms/plugin-commerce",
+	"version": "0.1.0",
+	"description": "E-commerce plugin for EmDash CMS -- products, cart, checkout, orders",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": ["src"],
+	"keywords": ["emdash", "cms", "plugin", "ecommerce", "shop", "cart", "checkout"],
+	"author": "EmDash CMS",
+	"license": "MIT",
+	"dependencies": {},
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/commerce"
+	}
+}

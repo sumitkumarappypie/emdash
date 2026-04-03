@@ -1,0 +1,44 @@
+import type { PluginDescriptor } from "emdash";
+
+import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
+
+export type {
+	Product,
+	Variant,
+	Category,
+	Cart,
+	CartItem,
+	Order,
+	OrderItem,
+	Transaction,
+	Customer,
+	Coupon,
+	Address,
+	ShippingRate,
+	TaxResult,
+	PaymentCreateResult,
+} from "./types.js";
+
+export function commercePlugin(): PluginDescriptor {
+	return {
+		id: "commerce",
+		version: "0.1.0",
+		format: "standard",
+		entrypoint: "@emdash-cms/plugin-commerce/sandbox",
+		capabilities: ["read:content", "write:content", "email:send"],
+		storage: COMMERCE_STORAGE_CONFIG,
+		adminPages: [
+			{ path: "/", label: "Dashboard", icon: "dashboard" },
+			{ path: "/products", label: "Products", icon: "box" },
+			{ path: "/categories", label: "Categories", icon: "folder" },
+			{ path: "/orders", label: "Orders", icon: "receipt" },
+			{ path: "/customers", label: "Customers", icon: "users" },
+			{ path: "/coupons", label: "Coupons", icon: "tag" },
+			{ path: "/settings", label: "Settings", icon: "settings" },
+		],
+		adminWidgets: [
+			{ id: "revenue", title: "Revenue", size: "half" },
+			{ id: "recent-orders", title: "Recent Orders", size: "half" },
+		],
+	};
+}
