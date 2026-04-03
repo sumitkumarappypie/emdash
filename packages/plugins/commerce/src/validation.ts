@@ -73,7 +73,7 @@ export const createVariantSchema = z.object({
 	dimensionsLength: z.number().nonnegative().nullable().default(null),
 	dimensionsWidth: z.number().nonnegative().nullable().default(null),
 	dimensionsHeight: z.number().nonnegative().nullable().default(null),
-	optionValues: z.record(z.string()).default({}),
+	optionValues: z.record(z.string(), z.string()).default({}),
 	sortOrder: z.number().int().default(0),
 	status: z.enum(["draft", "active", "archived"]).default("active"),
 });
