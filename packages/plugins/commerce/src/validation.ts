@@ -172,7 +172,9 @@ export const createCouponSchema = z.object({
 	expiresAt: z.string().datetime().nullable().default(null),
 });
 
-export const updateCouponSchema = createCouponSchema.partial();
+export const updateCouponSchema = createCouponSchema.partial().extend({
+	status: z.enum(["active", "inactive"]).optional(),
+});
 
 // Order admin schemas
 export const updateOrderStatusSchema = z.object({
