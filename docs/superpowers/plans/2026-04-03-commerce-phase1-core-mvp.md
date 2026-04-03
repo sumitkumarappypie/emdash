@@ -419,10 +419,12 @@ export interface Coupon {
 	categoryIds: string[];
 	startsAt: string | null;
 	expiresAt: string | null;
-	status: ProductStatus;
+	status: CouponStatus;
 	createdAt: string;
 	updatedAt: string;
 }
+
+export type CouponStatus = "active" | "inactive";
 
 // Provider interfaces
 export interface ShippingRate {
@@ -2029,9 +2031,13 @@ interface CheckoutStorages {
 	orders: StorageCollection<Order>;
 	orderItems: StorageCollection<OrderItem>;
 	products: StorageCollection<Record<string, unknown>>;
+	variants: StorageCollection<Record<string, unknown>>;
 	customers: StorageCollection<Record<string, unknown>>;
 	orderCounter: StorageCollection<{ value: number }>;
 }
+
+// Tracks inventory alerts to dispatch via hooks after checkout completes
+const inventoryAlerts: Array<{ productId: string; remaining: number }> = [];
 
 async function getNextOrderNumber(
 	counterStorage: StorageCollection<{ value: number }>,
@@ -2061,7 +2067,7 @@ export async function createOrderFromCart(
 	const items = await getCartItems(storages.cartItems, cartId);
 	if (items.length === 0) throw new CommerceError("CART_EMPTY", "Cart is empty");
 
-	// Re-validate prices against current product data
+	// Re-validate prices and check inventory against current product data
 	const orderItems: OrderItem[] = [];
 	let subtotal = 0;
 
@@ -2069,24 +2075,90 @@ export async function createOrderFromCart(
 		const product = await storages.products.get(item.productId);
 		if (!product) continue;
 
+		// Inventory check
+		if (product.trackInventory) {
+			const available = (product.inventoryQuantity as number) ?? 0;
+			if (available < item.quantity) {
+				throw new CommerceError(
+					"INSUFFICIENT_STOCK",
+					`Insufficient stock for ${product.name}: ${available} available, ${item.quantity} requested`,
+				);
+			}
+		}
+
 		const currentPrice = (product.basePrice as number) ?? item.unitPrice;
+
+		// Resolve variant name if applicable
+		let variantName = "";
+		let sku = (product.sku as string) ?? "";
+		if (item.variantId) {
+			const variant = await storages.variants.get(item.variantId);
+			if (variant) {
+				variantName = (variant.name as string) ?? "";
+				if (variant.sku) sku = variant.sku as string;
+				if (variant.price !== null && variant.price !== undefined) {
+					// Use variant-specific price
+					const vPrice = variant.price as number;
+					const totalPrice = Math.round(vPrice * item.quantity * 100) / 100;
+					subtotal += totalPrice;
+					orderItems.push({
+						id: crypto.randomUUID(),
+						orderId: "",
+						productId: item.productId,
+						variantId: item.variantId,
+						productName: (product.name as string) ?? "",
+						variantName,
+						sku,
+						quantity: item.quantity,
+						unitPrice: vPrice,
+						totalPrice,
+						fulfillmentStatus: "unfulfilled",
+						metadata: item.metadata,
+					});
+					continue;
+				}
+			}
+		}
+
 		const totalPrice = Math.round(currentPrice * item.quantity * 100) / 100;
 		subtotal += totalPrice;
 
 		orderItems.push({
 			id: crypto.randomUUID(),
-			orderId: "", // Set after order creation
+			orderId: "",
 			productId: item.productId,
 			variantId: item.variantId,
 			productName: (product.name as string) ?? "",
-			variantName: "",
-			sku: (product.sku as string) ?? "",
+			variantName,
+			sku,
 			quantity: item.quantity,
 			unitPrice: currentPrice,
 			totalPrice,
 			fulfillmentStatus: "unfulfilled",
 			metadata: item.metadata,
 		});
+	}
+
+	// Decrement inventory atomically
+	for (const item of items) {
+		const product = await storages.products.get(item.productId);
+		if (!product || !product.trackInventory) continue;
+
+		const newQty = ((product.inventoryQuantity as number) ?? 0) - item.quantity;
+		await storages.products.put(item.productId, {
+			...product,
+			inventoryQuantity: newQty,
+			updatedAt: new Date().toISOString(),
+		});
+
+		// Fire low-stock warning if threshold crossed
+		if (newQty <= ((product.lowStockThreshold as number) ?? 5) && newQty >= 0) {
+			// Stored for hooks.ts to dispatch commerce:inventory:low
+			(inventoryAlerts as Array<{ productId: string; remaining: number }>).push({
+				productId: item.productId,
+				remaining: newQty,
+			});
+		}
 	}
 
 	const orderNumber = await getNextOrderNumber(storages.orderCounter);
@@ -3910,4 +3982,973 @@ Expected: page renders without errors (empty product list since no products seed
 ```bash
 git add demos/simple/
 git commit -m "feat(commerce): integrate commerce plugins into demo site"
+```
+
+---
+
+## Task 19: Commerce Hook System (hooks.ts)
+
+**Files:**
+- Create: `packages/plugins/commerce/src/hooks.ts`
+- Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
+
+The spec defines 9 core commerce hooks that other plugins (and sub-plugins in later phases) can listen to. Since EmDash's hook system only supports predefined hook names, commerce hooks are dispatched via a KV-based event bus: the core plugin writes events to a `state:events:*` KV key, and interested plugins poll or receive via a `cron` hook.
+
+Alternatively (and simpler for Phase 1), the core plugin dispatches commerce events by calling registered listener routes on provider/sub-plugins. This avoids needing new hook names in EmDash core.
+
+- [ ] **Step 1: Create hooks.ts — event dispatcher**
+
+```typescript
+import type { PluginContext } from "emdash";
+import type { Order, Product } from "./types.js";
+
+export type CommerceEvent =
+	| { type: "commerce:product:afterSave"; product: Product }
+	| { type: "commerce:order:created"; order: Order }
+	| { type: "commerce:order:statusChanged"; order: Order; previousStatus: string }
+	| { type: "commerce:order:paid"; order: Order }
+	| { type: "commerce:order:refunded"; order: Order; amount: number }
+	| { type: "commerce:inventory:low"; productId: string; remaining: number }
+	| { type: "commerce:checkout:beforeComplete"; cartId: string }
+	| { type: "commerce:cart:beforeAdd"; cartId: string; productId: string }
+	| { type: "commerce:cart:afterUpdate"; cartId: string };
+
+// Event listeners registered by sub-plugins via the providers/register-listener route
+interface EventListener {
+	pluginId: string;
+	eventTypes: string[];
+	routeName: string;
+}
+
+export async function dispatchCommerceEvent(
+	ctx: PluginContext,
+	event: CommerceEvent,
+): Promise<void> {
+	// Log the event
+	ctx.log.info(`Commerce event: ${event.type}`);
+
+	// Store event for audit trail
+	const eventId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+	await ctx.kv.set(`state:events:${eventId}`, {
+		...event,
+		timestamp: new Date().toISOString(),
+	});
+
+	// Dispatch email notifications for key events
+	if (ctx.email) {
+		switch (event.type) {
+			case "commerce:order:created": {
+				await ctx.email.send({
+					to: event.order.customerEmail,
+					subject: `Order Confirmed: ${event.order.orderNumber}`,
+					html: buildOrderConfirmationEmail(event.order),
+				});
+				break;
+			}
+			case "commerce:order:paid": {
+				await ctx.email.send({
+					to: event.order.customerEmail,
+					subject: `Payment Received: ${event.order.orderNumber}`,
+					html: buildPaymentReceivedEmail(event.order),
+				});
+				break;
+			}
+			case "commerce:order:refunded": {
+				await ctx.email.send({
+					to: event.order.customerEmail,
+					subject: `Refund Processed: ${event.order.orderNumber}`,
+					html: buildRefundEmail(event.order, event.amount),
+				});
+				break;
+			}
+			case "commerce:inventory:low": {
+				// Send to admin — get admin email from settings
+				const adminEmail = await ctx.kv.get<string>("settings:admin_email");
+				if (adminEmail) {
+					await ctx.email.send({
+						to: adminEmail,
+						subject: `Low Stock Alert: ${event.productId}`,
+						html: `<p>Product ${event.productId} has only ${event.remaining} units remaining.</p>`,
+					});
+				}
+				break;
+			}
+		}
+	}
+}
+
+// Email template builders
+function buildOrderConfirmationEmail(order: Order): string {
+	return `
+		<h1>Order Confirmed</h1>
+		<p>Thank you for your order, ${order.customerName}!</p>
+		<p><strong>Order Number:</strong> ${order.orderNumber}</p>
+		<p><strong>Total:</strong> ${formatCurrency(order.total, order.currency)}</p>
+		<p>We'll send you another email when your order ships.</p>
+	`;
+}
+
+function buildPaymentReceivedEmail(order: Order): string {
+	return `
+		<h1>Payment Received</h1>
+		<p>We've received your payment for order ${order.orderNumber}.</p>
+		<p><strong>Amount:</strong> ${formatCurrency(order.total, order.currency)}</p>
+	`;
+}
+
+function buildRefundEmail(order: Order, amount: number): string {
+	return `
+		<h1>Refund Processed</h1>
+		<p>A refund of ${formatCurrency(amount, order.currency)} has been processed for order ${order.orderNumber}.</p>
+		<p>Please allow 5-10 business days for the refund to appear on your statement.</p>
+	`;
+}
+
+function formatCurrency(amount: number, currency: string): string {
+	return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+}
+```
+
+- [ ] **Step 2: Wire hooks into sandbox-entry.ts**
+
+Add imports and dispatch calls at key points in routes:
+
+```typescript
+import { dispatchCommerceEvent } from "./hooks.js";
+
+// In checkout/create route, after order creation:
+await dispatchCommerceEvent(ctx, { type: "commerce:order:created", order });
+
+// In admin/orders/status route, after status update:
+await dispatchCommerceEvent(ctx, { type: "commerce:order:statusChanged", order: updated, previousStatus: order.status });
+
+// In admin/products/create and admin/products/update routes:
+await dispatchCommerceEvent(ctx, { type: "commerce:product:afterSave", product });
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add packages/plugins/commerce/src/hooks.ts
+git commit -m "feat(commerce): add commerce event dispatcher with email notifications"
+```
+
+---
+
+## Task 20: Refund Flow
+
+**Files:**
+- Modify: `packages/plugins/commerce/src/orders.ts`
+- Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
+- Test: `packages/core/tests/unit/plugins/commerce/refund.test.ts`
+
+- [ ] **Step 1: Write failing tests for refund operations**
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+
+describe("Refund Flow", () => {
+	it("processes a full refund", async () => {
+		// Setup: create a paid order
+		const order = makePaidOrder({ total: 100, paymentStatus: "paid" });
+		await orderStorage.put(order.id, order);
+
+		const refunded = await refundOrder(orderStorage, transactionStorage, order.id, {});
+		expect(refunded.paymentStatus).toBe("refunded");
+		expect(refunded.status).toBe("refunded");
+	});
+
+	it("processes a partial refund", async () => {
+		const order = makePaidOrder({ total: 100, paymentStatus: "paid" });
+		await orderStorage.put(order.id, order);
+
+		const refunded = await refundOrder(orderStorage, transactionStorage, order.id, {
+			amount: 25,
+			reason: "Damaged item",
+		});
+		expect(refunded.paymentStatus).toBe("partially_refunded");
+		expect(refunded.status).toBe("paid"); // Overall status unchanged for partial
+	});
+
+	it("records refund transaction", async () => {
+		const order = makePaidOrder({ total: 100, paymentStatus: "paid" });
+		await orderStorage.put(order.id, order);
+
+		await refundOrder(orderStorage, transactionStorage, order.id, { amount: 25 });
+
+		const txns = await getTransactionsByOrder(transactionStorage, order.id);
+		expect(txns).toHaveLength(1);
+		expect(txns[0]!.type).toBe("partial_refund");
+		expect(txns[0]!.amount).toBe(25);
+	});
+
+	it("rejects refund on unpaid order", async () => {
+		const order = makePaidOrder({ total: 100, paymentStatus: "unpaid" });
+		await orderStorage.put(order.id, order);
+
+		await expect(refundOrder(orderStorage, transactionStorage, order.id, {}))
+			.rejects.toThrow("ORDER_NOT_PAID");
+	});
+
+	it("rejects refund exceeding order total", async () => {
+		const order = makePaidOrder({ total: 100, paymentStatus: "paid" });
+		await orderStorage.put(order.id, order);
+
+		await expect(refundOrder(orderStorage, transactionStorage, order.id, { amount: 150 }))
+			.rejects.toThrow("REFUND_EXCEEDS_TOTAL");
+	});
+
+	it("restores inventory on full refund", async () => {
+		const order = makePaidOrder({ total: 100, paymentStatus: "paid" });
+		await orderStorage.put(order.id, order);
+
+		const orderItem = { id: "oi-1", orderId: order.id, productId: "prod-1", quantity: 2, fulfillmentStatus: "unfulfilled" };
+		await orderItemStorage.put(orderItem.id, orderItem);
+
+		const product = { id: "prod-1", trackInventory: true, inventoryQuantity: 8 };
+		await productStorage.put(product.id, product);
+
+		await refundOrder(orderStorage, transactionStorage, order.id, {}, {
+			orderItems: orderItemStorage,
+			products: productStorage,
+		});
+
+		const updated = await productStorage.get("prod-1");
+		expect(updated.inventoryQuantity).toBe(10); // 8 + 2 restored
+	});
+});
+```
+
+- [ ] **Step 2: Run tests — expect FAIL**
+
+- [ ] **Step 3: Implement refundOrder in orders.ts**
+
+```typescript
+export async function refundOrder(
+	orderStorage: StorageCollection<Order>,
+	transactionStorage: StorageCollection<Transaction>,
+	orderId: string,
+	input: { amount?: number; reason?: string },
+	inventoryStorages?: {
+		orderItems: StorageCollection<OrderItem>;
+		products: StorageCollection<Record<string, unknown>>;
+	},
+): Promise<Order> {
+	const order = await orderStorage.get(orderId);
+	if (!order) throw new CommerceError("ORDER_NOT_FOUND", "Order not found");
+	if (order.paymentStatus === "unpaid") throw new CommerceError("ORDER_NOT_PAID", "Cannot refund unpaid order");
+	if (order.paymentStatus === "refunded") throw new CommerceError("ORDER_ALREADY_REFUNDED", "Order already fully refunded");
+
+	const refundAmount = input.amount ?? order.total;
+	if (refundAmount > order.total) throw new CommerceError("REFUND_EXCEEDS_TOTAL", "Refund amount exceeds order total");
+
+	const isFullRefund = refundAmount >= order.total;
+	const transactionType = isFullRefund ? "refund" : "partial_refund";
+
+	// Record refund transaction
+	const txnId = crypto.randomUUID();
+	await transactionStorage.put(txnId, {
+		id: txnId,
+		orderId,
+		type: transactionType,
+		amount: refundAmount,
+		currency: order.currency,
+		provider: order.paymentProvider ?? "",
+		providerTransactionId: `refund-${txnId}`,
+		status: "succeeded",
+		metadata: { reason: input.reason ?? "" },
+		createdAt: new Date().toISOString(),
+	});
+
+	// Restore inventory on full refund
+	if (isFullRefund && inventoryStorages) {
+		const items = await getOrderItems(inventoryStorages.orderItems, orderId);
+		for (const item of items) {
+			const product = await inventoryStorages.products.get(item.productId);
+			if (!product || !product.trackInventory) continue;
+			const restored = ((product.inventoryQuantity as number) ?? 0) + item.quantity;
+			await inventoryStorages.products.put(item.productId, {
+				...product,
+				inventoryQuantity: restored,
+				updatedAt: new Date().toISOString(),
+			});
+		}
+	}
+
+	const updated: Order = {
+		...order,
+		paymentStatus: isFullRefund ? "refunded" : "partially_refunded",
+		status: isFullRefund ? "refunded" : order.status,
+		updatedAt: new Date().toISOString(),
+	};
+
+	await orderStorage.put(orderId, updated);
+	return updated;
+}
+```
+
+- [ ] **Step 4: Wire refund route in sandbox-entry.ts**
+
+```typescript
+"admin/orders/refund": {
+	handler: async (routeCtx: { input: { id: string; amount?: number; reason?: string } }, ctx: PluginContext) => {
+		const refunded = await refundOrder(
+			ctx.storage.orders!,
+			ctx.storage.transactions!,
+			routeCtx.input.id,
+			routeCtx.input,
+			{ orderItems: ctx.storage.orderItems!, products: ctx.storage.products! },
+		);
+		await dispatchCommerceEvent(ctx, {
+			type: "commerce:order:refunded",
+			order: refunded,
+			amount: routeCtx.input.amount ?? refunded.total,
+		});
+		return refunded;
+	},
+},
+```
+
+- [ ] **Step 5: Run tests — expect PASS**
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/plugins/commerce/src/orders.ts packages/core/tests/unit/plugins/commerce/refund.test.ts
+git commit -m "feat(commerce): add refund flow with inventory restoration"
+```
+
+---
+
+## Task 21: Cart Merge & Customer Address Book
+
+**Files:**
+- Modify: `packages/plugins/commerce/src/cart.ts`
+- Modify: `packages/plugins/commerce/src/customers.ts`
+- Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
+- Test: `packages/core/tests/unit/plugins/commerce/cart-merge.test.ts`
+
+- [ ] **Step 1: Write failing test for cart merge**
+
+```typescript
+describe("Cart Merge", () => {
+	it("merges anonymous cart into customer cart, larger quantity wins", async () => {
+		// Anonymous cart has Product A x 3, Product B x 1
+		const anonCart = await createCart(cartStorage, { sessionId: "sess-1" });
+		await addCartItem(cartStorage, cartItemStorage, productStorage, variantStorage, anonCart.id, {
+			productId: "prod-a",
+			quantity: 3,
+		});
+		await addCartItem(cartStorage, cartItemStorage, productStorage, variantStorage, anonCart.id, {
+			productId: "prod-b",
+			quantity: 1,
+		});
+
+		// Customer cart has Product A x 1, Product C x 2
+		const custCart = await createCart(cartStorage, { customerId: "cust-1" });
+		await addCartItem(cartStorage, cartItemStorage, productStorage, variantStorage, custCart.id, {
+			productId: "prod-a",
+			quantity: 1,
+		});
+		await addCartItem(cartStorage, cartItemStorage, productStorage, variantStorage, custCart.id, {
+			productId: "prod-c",
+			quantity: 2,
+		});
+
+		const merged = await mergeCarts(cartStorage, cartItemStorage, anonCart.id, custCart.id);
+
+		const items = await getCartItems(cartItemStorage, merged.id);
+		expect(items).toHaveLength(3);
+
+		const itemA = items.find((i) => i.productId === "prod-a");
+		expect(itemA!.quantity).toBe(3); // Larger wins (anon had 3, cust had 1)
+
+		const itemB = items.find((i) => i.productId === "prod-b");
+		expect(itemB!.quantity).toBe(1);
+
+		const itemC = items.find((i) => i.productId === "prod-c");
+		expect(itemC!.quantity).toBe(2);
+
+		// Anonymous cart should be deleted
+		const deletedAnon = await cartStorage.get(anonCart.id);
+		expect(deletedAnon).toBeNull();
+	});
+});
+```
+
+- [ ] **Step 2: Run test — expect FAIL**
+
+- [ ] **Step 3: Implement mergeCarts in cart.ts**
+
+```typescript
+export async function mergeCarts(
+	cartStorage: StorageCollection<Cart>,
+	cartItemStorage: StorageCollection<CartItem>,
+	sourceCartId: string,
+	targetCartId: string,
+): Promise<Cart> {
+	const sourceCart = await cartStorage.get(sourceCartId);
+	const targetCart = await cartStorage.get(targetCartId);
+	if (!sourceCart) throw new CommerceError("CART_NOT_FOUND", "Source cart not found");
+	if (!targetCart) throw new CommerceError("CART_NOT_FOUND", "Target cart not found");
+
+	const sourceItems = await getCartItems(cartItemStorage, sourceCartId);
+	const targetItems = await getCartItems(cartItemStorage, targetCartId);
+
+	for (const sourceItem of sourceItems) {
+		const matchKey = `${sourceItem.productId}:${sourceItem.variantId ?? ""}`;
+		const existing = targetItems.find(
+			(t) => `${t.productId}:${t.variantId ?? ""}` === matchKey,
+		);
+
+		if (existing) {
+			// Larger quantity wins
+			if (sourceItem.quantity > existing.quantity) {
+				await cartItemStorage.put(existing.id, {
+					...existing,
+					quantity: sourceItem.quantity,
+					totalPrice: Math.round(existing.unitPrice * sourceItem.quantity * 100) / 100,
+				});
+			}
+		} else {
+			// New item — copy to target cart
+			const newId = crypto.randomUUID();
+			await cartItemStorage.put(newId, {
+				...sourceItem,
+				id: newId,
+				cartId: targetCartId,
+			});
+		}
+
+		// Delete source item
+		await cartItemStorage.delete(sourceItem.id);
+	}
+
+	// Delete source cart
+	await cartStorage.delete(sourceCartId);
+
+	return targetCart;
+}
+```
+
+- [ ] **Step 4: Add customer address CRUD routes to sandbox-entry.ts**
+
+```typescript
+"account/addresses/list": {
+	handler: async (routeCtx: { input: { customerId: string } }, ctx: PluginContext) => {
+		const customer = await getCustomer(ctx.storage.customers!, routeCtx.input.customerId);
+		if (!customer) throw new CommerceError("CUSTOMER_NOT_FOUND", "Customer not found");
+		// Addresses stored as KV entries scoped to customer
+		const addresses = await ctx.kv.list(`state:addresses:${customer.id}:`);
+		return { addresses: addresses.map((a) => a.value) };
+	},
+},
+
+"account/addresses/save": {
+	handler: async (routeCtx: { input: { customerId: string; addressId?: string; address: Record<string, unknown> } }, ctx: PluginContext) => {
+		const id = routeCtx.input.addressId ?? crypto.randomUUID();
+		await ctx.kv.set(`state:addresses:${routeCtx.input.customerId}:${id}`, {
+			id,
+			...routeCtx.input.address,
+		});
+		return { id, success: true };
+	},
+},
+
+"account/addresses/delete": {
+	handler: async (routeCtx: { input: { customerId: string; addressId: string } }, ctx: PluginContext) => {
+		await ctx.kv.delete(`state:addresses:${routeCtx.input.customerId}:${routeCtx.input.addressId}`);
+		return { success: true };
+	},
+},
+
+"cart/merge": {
+	handler: async (routeCtx: { input: { sourceCartId: string; targetCartId: string } }, ctx: PluginContext) => {
+		const merged = await mergeCarts(
+			ctx.storage.carts!,
+			ctx.storage.cartItems!,
+			routeCtx.input.sourceCartId,
+			routeCtx.input.targetCartId,
+		);
+		await recalculateCart(ctx.storage.carts!, ctx.storage.cartItems!, merged.id);
+		return merged;
+	},
+},
+```
+
+- [ ] **Step 5: Run tests — expect PASS**
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/plugins/commerce/src/cart.ts packages/plugins/commerce/src/sandbox-entry.ts \
+  packages/core/tests/unit/plugins/commerce/cart-merge.test.ts
+git commit -m "feat(commerce): add cart merge on sign-in and customer address book"
+```
+
+---
+
+## Task 22: Abandoned Cart Cleanup Cron
+
+**Files:**
+- Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
+
+- [ ] **Step 1: Add cron hook for cart cleanup**
+
+In `sandbox-entry.ts`, add to the hooks section:
+
+```typescript
+cron: {
+	handler: async (event: { name: string }, ctx: PluginContext) => {
+		if (event.name === "cleanup-expired-carts") {
+			const now = new Date().toISOString();
+			const expired = await ctx.storage.carts!.query({
+				where: { expiresAt: { $lt: now } },
+				limit: 100,
+			});
+
+			let cleaned = 0;
+			for (const cart of expired.items) {
+				// Delete cart items
+				const items = await ctx.storage.cartItems!.query({
+					where: { cartId: cart.id },
+					limit: 1000,
+				});
+				for (const item of items.items) {
+					await ctx.storage.cartItems!.delete(item.id);
+				}
+				// Delete cart
+				await ctx.storage.carts!.delete(cart.id);
+				cleaned++;
+			}
+
+			ctx.log.info(`Cleaned up ${cleaned} expired carts`);
+		}
+	},
+},
+```
+
+- [ ] **Step 2: Schedule cron on plugin activate**
+
+Add to the `plugin:activate` hook:
+
+```typescript
+"plugin:activate": async (_event: unknown, ctx: PluginContext) => {
+	ctx.log.info("Commerce plugin activated");
+	// Schedule daily cart cleanup
+	if (ctx.cron) {
+		await ctx.cron.schedule("cleanup-expired-carts", {
+			schedule: "0 3 * * *", // Daily at 3 AM
+		});
+	}
+},
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add packages/plugins/commerce/src/sandbox-entry.ts
+git commit -m "feat(commerce): add cron job for abandoned cart cleanup"
+```
+
+---
+
+## Task 23: Order Confirmation Token Route & Digital Cart Shipping Skip
+
+**Files:**
+- Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
+- Modify: `packages/plugins/commerce/src/checkout.ts`
+
+- [ ] **Step 1: Add token-authenticated order confirmation route**
+
+```typescript
+"orders/confirmation": {
+	public: true,
+	handler: async (routeCtx: { input: { orderId: string; token: string } }, ctx: PluginContext) => {
+		// Verify confirmation token
+		const storedToken = await ctx.kv.get<string>(`state:order-token:${routeCtx.input.orderId}`);
+		if (!storedToken || storedToken !== routeCtx.input.token) {
+			throw new CommerceError("UNAUTHORIZED", "Invalid confirmation token");
+		}
+
+		const order = await getOrder(ctx.storage.orders!, routeCtx.input.orderId);
+		if (!order) throw new CommerceError("ORDER_NOT_FOUND", "Order not found");
+
+		const items = await getOrderItems(ctx.storage.orderItems!, order.id);
+		return { ...order, items };
+	},
+},
+```
+
+- [ ] **Step 2: Generate confirmation token during checkout**
+
+In `checkout.ts`, after creating the order, add:
+
+```typescript
+// Generate confirmation token for public order lookup
+const confirmationToken = crypto.randomUUID();
+// Store via ctx.kv passed through storages
+```
+
+And update `createOrderFromCart` to accept a `kv` parameter and store the token:
+
+```typescript
+// At end of createOrderFromCart, before return:
+if (storages.kv) {
+	const token = crypto.randomUUID();
+	await storages.kv.set(`state:order-token:${orderId}`, token);
+	(order as Order & { confirmationToken: string }).confirmationToken = token;
+}
+```
+
+- [ ] **Step 3: Add digital-only cart shipping skip logic**
+
+In `checkout.ts`, before creating the order, check if all items are digital:
+
+```typescript
+// Check if cart is digital-only (skip shipping validation)
+const allDigital = items.every((item) => {
+	const product = products.get(item.productId);
+	return product && (product.productType as string) === "digital";
+});
+
+if (allDigital) {
+	// Override shipping totals to 0
+	cart.shippingTotal = 0;
+	cart.shippingMethodId = null;
+}
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add packages/plugins/commerce/src/checkout.ts packages/plugins/commerce/src/sandbox-entry.ts
+git commit -m "feat(commerce): add order confirmation tokens and digital cart shipping skip"
+```
+
+---
+
+## Task 24: Admin Role Authorization
+
+**Files:**
+- Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
+
+- [ ] **Step 1: Add authorization checks to admin routes**
+
+All admin routes must verify the user has the correct role. Since plugin routes receive `routeCtx` which includes request metadata, we enforce via a helper:
+
+```typescript
+// At top of sandbox-entry.ts
+function requireAdmin(routeCtx: { requestMeta?: { user?: { role?: string } } }): void {
+	const role = routeCtx.requestMeta?.user?.role;
+	if (!role || !["admin", "editor"].includes(role)) {
+		throw new CommerceError("FORBIDDEN", "Insufficient permissions");
+	}
+}
+
+function requireAdminOnly(routeCtx: { requestMeta?: { user?: { role?: string } } }): void {
+	const role = routeCtx.requestMeta?.user?.role;
+	if (role !== "admin") {
+		throw new CommerceError("FORBIDDEN", "Admin access required");
+	}
+}
+```
+
+- [ ] **Step 2: Add to every admin route**
+
+```typescript
+// All product/order/category/customer/coupon admin routes:
+"admin/products/create": {
+	handler: async (routeCtx, ctx) => {
+		requireAdmin(routeCtx); // EDITOR or ADMIN
+		return createProduct(ctx.storage.products!, routeCtx.input);
+	},
+},
+
+// Settings and refund routes require ADMIN:
+"admin/orders/refund": {
+	handler: async (routeCtx, ctx) => {
+		requireAdminOnly(routeCtx); // ADMIN only
+		// ... existing refund logic
+	},
+},
+
+"admin/settings": {
+	handler: async (routeCtx, ctx) => {
+		requireAdminOnly(routeCtx); // ADMIN only
+		// ... existing settings logic
+	},
+},
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add packages/plugins/commerce/src/sandbox-entry.ts
+git commit -m "feat(commerce): add role-based authorization to admin routes"
+```
+
+---
+
+## Task 25: Coupon Per-Customer Limit & Edge Cases
+
+**Files:**
+- Modify: `packages/plugins/commerce/src/coupons.ts`
+- Modify: `packages/plugins/commerce/src/cart.ts`
+- Test: `packages/core/tests/unit/plugins/commerce/coupon-edge-cases.test.ts`
+
+- [ ] **Step 1: Write failing tests**
+
+```typescript
+describe("Coupon per-customer limit", () => {
+	it("rejects coupon when customer has hit per-customer limit", () => {
+		const coupon = makeCoupon({ perCustomerLimit: 1 });
+		const customerUsage = 1; // Already used once
+		const result = validateCoupon(coupon, makeCart({ subtotal: 100 }), [], customerUsage);
+		expect(result).toBe("COUPON_LIMIT_REACHED");
+	});
+
+	it("allows coupon when customer is under per-customer limit", () => {
+		const coupon = makeCoupon({ perCustomerLimit: 3 });
+		const customerUsage = 1;
+		const result = validateCoupon(coupon, makeCart({ subtotal: 100 }), [], customerUsage);
+		expect(result).toBeNull();
+	});
+});
+
+describe("Cart edge cases", () => {
+	it("removes unavailable variant during recalculation", async () => {
+		const cart = await createCart(cartStorage, { sessionId: "test" });
+		await addCartItem(cartStorage, cartItemStorage, productStorage, variantStorage, cart.id, {
+			productId: "prod-1",
+			quantity: 1,
+		});
+
+		// Delete the product (simulate it becoming unavailable)
+		await productStorage.delete("prod-1");
+
+		const recalculated = await recalculateCartWithValidation(
+			cartStorage,
+			cartItemStorage,
+			productStorage,
+			variantStorage,
+			cart.id,
+		);
+
+		expect(recalculated.removedItems).toHaveLength(1);
+		expect(recalculated.cart.subtotal).toBe(0);
+	});
+});
+```
+
+- [ ] **Step 2: Run tests — expect FAIL**
+
+- [ ] **Step 3: Update validateCoupon to accept customerUsage parameter**
+
+```typescript
+export function validateCoupon(
+	coupon: Coupon,
+	cart: Cart,
+	cartItems: CartItem[],
+	customerUsageCount?: number,
+): string | null {
+	if (coupon.status !== "active") return "INVALID_COUPON";
+
+	const now = new Date();
+	if (coupon.expiresAt && new Date(coupon.expiresAt) < now) return "COUPON_EXPIRED";
+	if (coupon.startsAt && new Date(coupon.startsAt) > now) return "INVALID_COUPON";
+	if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) return "COUPON_LIMIT_REACHED";
+
+	// Per-customer limit check
+	if (
+		coupon.perCustomerLimit !== null &&
+		customerUsageCount !== undefined &&
+		customerUsageCount >= coupon.perCustomerLimit
+	) {
+		return "COUPON_LIMIT_REACHED";
+	}
+
+	if (coupon.minimumOrderAmount !== null && cart.subtotal < coupon.minimumOrderAmount) return "MINIMUM_NOT_MET";
+
+	if (coupon.appliesTo === "specific_products") {
+		const hasMatch = cartItems.some((item) => coupon.productIds.includes(item.productId));
+		if (!hasMatch) return "INVALID_COUPON";
+	}
+
+	return null;
+}
+```
+
+- [ ] **Step 4: Add recalculateCartWithValidation to cart.ts**
+
+```typescript
+export async function recalculateCartWithValidation(
+	cartStorage: StorageCollection<Cart>,
+	cartItemStorage: StorageCollection<CartItem>,
+	productStorage: StorageCollection<Record<string, unknown>>,
+	variantStorage: StorageCollection<Record<string, unknown>>,
+	cartId: string,
+): Promise<{ cart: Cart; removedItems: CartItem[] }> {
+	const cart = await cartStorage.get(cartId);
+	if (!cart) throw new CommerceError("CART_NOT_FOUND", "Cart not found");
+
+	const items = await getCartItems(cartItemStorage, cartId);
+	const removedItems: CartItem[] = [];
+
+	for (const item of items) {
+		const product = await productStorage.get(item.productId);
+		const isUnavailable = !product || (product.status as string) !== "active";
+
+		let variantUnavailable = false;
+		if (item.variantId) {
+			const variant = await variantStorage.get(item.variantId);
+			if (!variant || (variant.status as string) === "archived") {
+				variantUnavailable = true;
+			}
+		}
+
+		if (isUnavailable || variantUnavailable) {
+			removedItems.push(item);
+			await cartItemStorage.delete(item.id);
+		} else {
+			// Re-validate price from current product data
+			const currentPrice = (product!.basePrice as number) ?? item.unitPrice;
+			if (currentPrice !== item.unitPrice) {
+				await cartItemStorage.put(item.id, {
+					...item,
+					unitPrice: currentPrice,
+					totalPrice: Math.round(currentPrice * item.quantity * 100) / 100,
+				});
+			}
+		}
+	}
+
+	const updatedCart = await recalculateCart(cartStorage, cartItemStorage, cartId);
+	return { cart: updatedCart!, removedItems };
+}
+```
+
+- [ ] **Step 5: Run tests — expect PASS**
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add packages/plugins/commerce/src/coupons.ts packages/plugins/commerce/src/cart.ts \
+  packages/core/tests/unit/plugins/commerce/coupon-edge-cases.test.ts
+git commit -m "feat(commerce): add per-customer coupon limits and cart validation edge cases"
+```
+
+---
+
+## Task 26: Additional Test Coverage
+
+**Files:**
+- Test: `packages/core/tests/unit/plugins/commerce/category-tree.test.ts`
+- Test: `packages/core/tests/unit/plugins/commerce/guest-checkout.test.ts`
+- Test: `packages/core/tests/unit/plugins/commerce/stripe-webhook-flow.test.ts`
+
+- [ ] **Step 1: Category tree test**
+
+```typescript
+describe("Category Tree", () => {
+	it("builds nested tree from flat list", async () => {
+		await createCategory(storage, { name: "Electronics", slug: "electronics" });
+		const elec = await getCategoryBySlug(storage, "electronics");
+
+		await createCategory(storage, { name: "Phones", slug: "phones", parentId: elec!.id });
+		await createCategory(storage, { name: "Laptops", slug: "laptops", parentId: elec!.id });
+		await createCategory(storage, { name: "Clothing", slug: "clothing" });
+
+		const tree = await getCategoryTree(storage);
+		expect(tree).toHaveLength(2); // Electronics, Clothing
+		const elecNode = tree.find((n) => n.slug === "electronics");
+		expect(elecNode!.children).toHaveLength(2);
+		expect(elecNode!.children.map((c) => c.slug)).toContain("phones");
+		expect(elecNode!.children.map((c) => c.slug)).toContain("laptops");
+	});
+
+	it("handles orphan categories gracefully", async () => {
+		await createCategory(storage, { name: "Orphan", slug: "orphan", parentId: "nonexistent" });
+		const tree = await getCategoryTree(storage);
+		expect(tree).toHaveLength(1); // Orphan promoted to root
+	});
+});
+```
+
+- [ ] **Step 2: Guest checkout test**
+
+```typescript
+describe("Guest Checkout", () => {
+	it("completes checkout without customer account", async () => {
+		const cart = await createCart(cartStorage, { sessionId: "anon-sess" });
+		// No customerId set
+
+		await addCartItem(cartStorage, cartItemStorage, productStorage, variantStorage, cart.id, {
+			productId: "prod-1",
+			quantity: 1,
+		});
+		await recalculateCart(cartStorage, cartItemStorage, cart.id);
+
+		const order = await createOrderFromCart(storages, cart.id, {
+			email: "guest@example.com",
+			name: "Guest User",
+			paymentProvider: "stripe",
+		});
+
+		expect(order.customerId).toBeNull();
+		expect(order.customerEmail).toBe("guest@example.com");
+		expect(order.status).toBe("pending");
+	});
+});
+```
+
+- [ ] **Step 3: Stripe webhook → order status flow test**
+
+```typescript
+describe("Stripe Webhook → Order Status", () => {
+	it("parses payment_intent.succeeded and returns order update data", () => {
+		const payload = JSON.stringify({
+			id: "evt_123",
+			type: "payment_intent.succeeded",
+			data: {
+				object: {
+					id: "pi_abc",
+					metadata: { orderId: "order-456" },
+				},
+			},
+		});
+
+		const event = parseStripeEvent(payload);
+		expect(event.type).toBe("payment_intent.succeeded");
+		expect((event.data.object.metadata as Record<string, string>).orderId).toBe("order-456");
+	});
+
+	it("parses charge.refunded event", () => {
+		const payload = JSON.stringify({
+			id: "evt_456",
+			type: "charge.refunded",
+			data: {
+				object: {
+					id: "ch_abc",
+					metadata: { orderId: "order-789" },
+				},
+			},
+		});
+
+		const event = parseStripeEvent(payload);
+		expect(event.type).toBe("charge.refunded");
+	});
+});
+```
+
+- [ ] **Step 4: Run all tests**
+
+Run: `pnpm --filter emdash test -- tests/unit/plugins/commerce/`
+Expected: all tests PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/core/tests/unit/plugins/commerce/
+git commit -m "test(commerce): add category tree, guest checkout, and webhook tests"
 ```
