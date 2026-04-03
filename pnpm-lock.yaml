@@ -1135,6 +1135,18 @@ importers:
         specifier: workspace:*
         version: link:../../core
 
+  packages/plugins/commerce-shipping-basic:
+    dependencies:
+      emdash:
+        specifier: workspace:*
+        version: link:../../core
+
+  packages/plugins/commerce-tax-basic:
+    dependencies:
+      emdash:
+        specifier: workspace:*
+        version: link:../../core
+
   packages/plugins/embeds:
     dependencies:
       '@emdash-cms/blocks':
