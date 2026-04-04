@@ -519,7 +519,11 @@ export default definePlugin({
 					return withNav("dashboard", buildDashboard);
 				}
 
-				if (type === "block_action") {
+				if (type === "block_action" || type === "form_submit") {
+					// Form submissions pass values in the 'values' field
+					const actionValue =
+						type === "form_submit" ? (routeCtx.input as Record<string, unknown>).values : value;
+
 					// Navigation between sub-pages
 					if (action_id?.startsWith("nav:")) {
 						const tab = action_id.replace("nav:", "");
@@ -541,8 +545,9 @@ export default definePlugin({
 						}
 					}
 
-					// Sub-page actions
-					if (action_id?.startsWith("product:")) return handleProductAction(action_id, value, ctx);
+					// Sub-page actions (pass form values for form_submit)
+					if (action_id?.startsWith("product:"))
+						return handleProductAction(action_id, actionValue, ctx);
 					if (action_id?.startsWith("order:")) return handleOrderAction(action_id, value, ctx);
 					if (action_id?.startsWith("category:"))
 						return handleCategoryAction(action_id, value, ctx);
