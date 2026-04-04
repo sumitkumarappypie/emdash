@@ -10,6 +10,7 @@ import { buildOrderList, handleOrderAction } from "./admin/orders.js";
 import { buildProductList, handleProductAction } from "./admin/products.js";
 import { buildSettingsPage, handleSettingsAction } from "./admin/settings.js";
 import {
+	CommerceError,
 	createCart,
 	getCart,
 	addCartItem,
@@ -49,6 +50,12 @@ import {
 import { registerProvider, unregisterProvider, getProviderRegistry } from "./providers.js";
 import { getTransactionsByOrder } from "./transactions.js";
 import { createVariant, listVariantsByProduct, updateVariant, deleteVariant } from "./variants.js";
+import {
+	registerCustomer,
+	loginCustomer,
+	validateSession,
+	destroySession,
+} from "./customer-auth.js";
 
 // Standard format: route handlers receive two args (routeCtx, pluginCtx)
 // via adapt-sandbox-entry.ts which splits the RouteContext.
@@ -103,6 +110,18 @@ export default definePlugin({
 
 	routes: {
 		// ── Public storefront routes ─────────────────────────────────────
+
+		"storefront/status": {
+			public: true,
+			handler: async (_routeCtx: RouteCtx, ctx: PluginContext) => {
+				const enabled = (await ctx.kv.get<string>("settings:storefront_enabled")) ?? "enabled";
+				const guestCheckout = (await ctx.kv.get<string>("settings:guest_checkout")) ?? "enabled";
+				return {
+					enabled: enabled === "enabled",
+					guestCheckout: guestCheckout === "enabled",
+				};
+			},
+		},
 
 		"products/list": {
 			public: true,
@@ -224,6 +243,17 @@ export default definePlugin({
 		"checkout/create": {
 			public: true,
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				// If customer is authenticated, link cart to customer
+				const customerToken = routeCtx.input.customerToken as string | undefined;
+				if (customerToken) {
+					const session = await validateSession(ctx.kv, customerToken);
+					if (session) {
+						const cart = await getCart(ctx.storage.carts!, routeCtx.input.cartId as string);
+						if (cart && !cart.customerId) {
+							await ctx.storage.carts!.put(cart.id, { ...cart, customerId: session.customerId });
+						}
+					}
+				}
 				const order = await createOrderFromCart(
 					{
 						carts: ctx.storage.carts!,
@@ -268,6 +298,117 @@ export default definePlugin({
 				if (!order) return null;
 				const items = await getOrderItems(ctx.storage.orderItems!, order.id);
 				return { ...order, items };
+			},
+		},
+
+		// ── Customer auth routes ────────────────────────────────────
+
+		"customer/register": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const result = await registerCustomer(
+					ctx.storage.customers!,
+					ctx.kv,
+					routeCtx.input as { email: string; password: string; name: string },
+				);
+				return {
+					customer: { id: result.customer.id, email: result.customer.email, name: result.customer.name },
+					token: result.token,
+				};
+			},
+		},
+
+		"customer/login": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const result = await loginCustomer(
+					ctx.storage.customers!,
+					ctx.kv,
+					routeCtx.input as { email: string; password: string },
+				);
+				return {
+					customer: { id: result.customer.id, email: result.customer.email, name: result.customer.name },
+					token: result.token,
+				};
+			},
+		},
+
+		"customer/session": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const token = routeCtx.input.customerToken as string | undefined;
+				if (!token) return { authenticated: false };
+				const session = await validateSession(ctx.kv, token);
+				if (!session) return { authenticated: false };
+				const customer = await getCustomer(ctx.storage.customers!, session.customerId);
+				if (!customer) return { authenticated: false };
+				return {
+					authenticated: true,
+					customer: { id: customer.id, email: customer.email, name: customer.name },
+				};
+			},
+		},
+
+		"customer/logout": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const token = routeCtx.input.customerToken as string | undefined;
+				if (token) await destroySession(ctx.kv, token);
+				return { success: true };
+			},
+		},
+
+		// ── Customer account routes ──────────────────────────────────
+
+		"account/addresses/list": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const session = await validateSession(ctx.kv, routeCtx.input.customerToken as string);
+				if (!session) throw new CommerceError("UNAUTHORIZED", "Not authenticated");
+				const customerId = session.customerId;
+				const entries = await ctx.kv.list(`state:addresses:${customerId}:`);
+				return { addresses: entries.map((e) => e.value) };
+			},
+		},
+
+		"account/addresses/save": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const session = await validateSession(ctx.kv, routeCtx.input.customerToken as string);
+				if (!session) throw new CommerceError("UNAUTHORIZED", "Not authenticated");
+				const customerId = session.customerId;
+				const addressId = (routeCtx.input.addressId as string) ?? crypto.randomUUID();
+				const address = routeCtx.input.address as Record<string, unknown>;
+				await ctx.kv.set(`state:addresses:${customerId}:${addressId}`, {
+					id: addressId,
+					...address,
+				});
+				return { id: addressId, success: true };
+			},
+		},
+
+		"account/addresses/delete": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const session = await validateSession(ctx.kv, routeCtx.input.customerToken as string);
+				if (!session) throw new CommerceError("UNAUTHORIZED", "Not authenticated");
+				const customerId = session.customerId;
+				const addressId = routeCtx.input.addressId as string;
+				await ctx.kv.delete(`state:addresses:${customerId}:${addressId}`);
+				return { success: true };
+			},
+		},
+
+		"account/orders": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const session = await validateSession(ctx.kv, routeCtx.input.customerToken as string);
+				if (!session) throw new CommerceError("UNAUTHORIZED", "Not authenticated");
+				return listOrders(ctx.storage.orders!, {
+					customerId: session.customerId,
+					limit: routeCtx.input.limit as number | undefined,
+					cursor: routeCtx.input.cursor as string | undefined,
+				});
 			},
 		},
 
@@ -394,7 +535,7 @@ export default definePlugin({
 				const updated = await updateOrderStatus(
 					ctx.storage.orders!,
 					routeCtx.input.id as string,
-					routeCtx.input.status as string,
+					routeCtx.input.status as import("./types.js").OrderStatus,
 				);
 				if (updated) {
 					await dispatchCommerceEvent(ctx, {
@@ -545,15 +686,39 @@ export default definePlugin({
 						}
 					}
 
-					// Sub-page actions (pass form values for form_submit)
+					// Sub-page actions — wrap responses with nav bar
+					async function withNavAction(
+						tab: string,
+						fn: () => Promise<{ blocks: unknown[]; toast?: unknown }>,
+					) {
+						const result = await fn();
+						return {
+							...result,
+							blocks: [commerceNav(tab), ...result.blocks],
+						};
+					}
+
 					if (action_id?.startsWith("product:"))
-						return handleProductAction(action_id, actionValue, ctx);
-					if (action_id?.startsWith("order:")) return handleOrderAction(action_id, value, ctx);
+						return withNavAction("products", () =>
+							handleProductAction(action_id, actionValue, ctx),
+						);
+					if (action_id?.startsWith("order:"))
+						return withNavAction("orders", () => handleOrderAction(action_id, actionValue, ctx));
 					if (action_id?.startsWith("category:"))
-						return handleCategoryAction(action_id, value, ctx);
-					if (action_id?.startsWith("coupon:")) return handleCouponAction(action_id, value, ctx);
+						return withNavAction("categories", () =>
+							handleCategoryAction(action_id, actionValue, ctx),
+						);
+					if (action_id?.startsWith("coupon:"))
+						return withNavAction("coupons", () => handleCouponAction(action_id, actionValue, ctx));
 					if (action_id?.startsWith("settings:"))
-						return handleSettingsAction(action_id, value, ctx);
+						return withNavAction("settings", () =>
+							handleSettingsAction(
+								action_id,
+								value,
+								ctx,
+								actionValue as Record<string, unknown> | undefined,
+							),
+						);
 				}
 
 				return { blocks: [] };
