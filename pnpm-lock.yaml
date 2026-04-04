@@ -391,6 +391,21 @@ importers:
       '@emdash-cms/plugin-color':
         specifier: workspace:*
         version: link:../../packages/plugins/color
+      '@emdash-cms/plugin-commerce':
+        specifier: workspace:*
+        version: link:../../packages/plugins/commerce
+      '@emdash-cms/plugin-commerce-shipping-basic':
+        specifier: workspace:*
+        version: link:../../packages/plugins/commerce-shipping-basic
+      '@emdash-cms/plugin-commerce-storefront':
+        specifier: workspace:*
+        version: link:../../packages/plugins/commerce-storefront
+      '@emdash-cms/plugin-commerce-stripe':
+        specifier: workspace:*
+        version: link:../../packages/plugins/commerce-stripe
+      '@emdash-cms/plugin-commerce-tax-basic':
+        specifier: workspace:*
+        version: link:../../packages/plugins/commerce-tax-basic
       astro:
         specifier: 'catalog:'
         version: 6.0.1(@types/node@24.10.13)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.55.2)(tsx@4.21.0)(typescript@6.0.0-beta)(yaml@2.8.2)
