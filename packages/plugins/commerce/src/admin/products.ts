@@ -15,15 +15,23 @@ export async function buildProductList(ctx: PluginContext) {
 			header("Products"),
 			button("New Product", "product:create", undefined, "primary"),
 			table(
-				["Name", "SKU", "Price", "Status", "Inventory", "Date"],
-				items.map((p) => [
-					p.name as string,
-					(p.sku as string) || "—",
-					formatCurrency(p.basePrice as number, (p.currency as string) ?? "USD"),
-					statusBadge(p.status as string),
-					p.trackInventory ? String(p.inventoryQuantity) : "—",
-					formatDate(p.createdAt as string),
-				]),
+				[
+					{ key: "name", label: "Name" },
+					{ key: "sku", label: "SKU" },
+					{ key: "price", label: "Price" },
+					{ key: "status", label: "Status", format: "badge" },
+					{ key: "inventory", label: "Inventory" },
+					{ key: "date", label: "Date" },
+				],
+				items.map((p) => ({
+					name: p.name as string,
+					sku: (p.sku as string) || "—",
+					price: formatCurrency(p.basePrice as number, (p.currency as string) ?? "USD"),
+					status: statusBadge(p.status as string),
+					inventory: p.trackInventory ? String(p.inventoryQuantity) : "—",
+					date: formatDate(p.createdAt as string),
+				})),
+				{ emptyText: "No products yet" },
 			),
 		],
 	};

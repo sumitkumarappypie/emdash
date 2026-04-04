@@ -22,15 +22,23 @@ export async function buildOrderList(ctx: PluginContext) {
 		blocks: [
 			header("Orders"),
 			table(
-				["Order #", "Customer", "Total", "Payment", "Fulfillment", "Date"],
-				items.map((o) => [
-					o.orderNumber as string,
-					o.customerEmail as string,
-					formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
-					statusBadge(o.paymentStatus as string),
-					statusBadge(o.fulfillmentStatus as string),
-					formatDate(o.createdAt as string),
-				]),
+				[
+					{ key: "orderNumber", label: "Order #" },
+					{ key: "customer", label: "Customer" },
+					{ key: "total", label: "Total" },
+					{ key: "payment", label: "Payment", format: "badge" },
+					{ key: "fulfillment", label: "Fulfillment", format: "badge" },
+					{ key: "date", label: "Date" },
+				],
+				items.map((o) => ({
+					orderNumber: o.orderNumber as string,
+					customer: o.customerEmail as string,
+					total: formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
+					payment: statusBadge(o.paymentStatus as string),
+					fulfillment: statusBadge(o.fulfillmentStatus as string),
+					date: formatDate(o.createdAt as string),
+				})),
+				{ emptyText: "No orders yet" },
 			),
 		],
 	};
@@ -74,14 +82,20 @@ export async function handleOrderAction(
 				},
 				header("Items"),
 				table(
-					["Product", "SKU", "Qty", "Price", "Total"],
-					items.map((item) => [
-						item.productName as string,
-						(item.sku as string) || "—",
-						String(item.quantity),
-						formatCurrency(item.unitPrice as number, (o.currency as string) ?? "USD"),
-						formatCurrency(item.totalPrice as number, (o.currency as string) ?? "USD"),
-					]),
+					[
+						{ key: "product", label: "Product" },
+						{ key: "sku", label: "SKU" },
+						{ key: "qty", label: "Qty" },
+						{ key: "price", label: "Price" },
+						{ key: "total", label: "Total" },
+					],
+					items.map((item) => ({
+						product: item.productName as string,
+						sku: (item.sku as string) || "—",
+						qty: String(item.quantity),
+						price: formatCurrency(item.unitPrice as number, (o.currency as string) ?? "USD"),
+						total: formatCurrency(item.totalPrice as number, (o.currency as string) ?? "USD"),
+					})),
 				),
 				...(o.paymentStatus === "paid" && o.fulfillmentStatus !== "fulfilled"
 					? [button("Fulfill Order", "order:fulfill", value, "primary")]

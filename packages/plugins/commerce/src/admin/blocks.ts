@@ -8,8 +8,18 @@ export function section(text: string) {
 	return { type: "section", text };
 }
 
-export function table(headers: string[], rows: string[][]) {
-	return { type: "table", headers, rows };
+export function table(
+	columns: Array<{ key: string; label: string; format?: string }>,
+	rows: Array<Record<string, unknown>>,
+	opts?: { emptyText?: string; actionId?: string },
+) {
+	return {
+		type: "table",
+		columns,
+		rows,
+		empty_text: opts?.emptyText ?? "No data",
+		page_action_id: opts?.actionId ?? "table:page",
+	};
 }
 
 export function button(

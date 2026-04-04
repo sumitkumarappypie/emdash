@@ -30,16 +30,21 @@ export async function buildDashboard(ctx: PluginContext) {
 			]),
 			header("Recent Orders"),
 			table(
-				["Order", "Customer", "Total", "Status", "Date"],
-				allOrders
-					.slice(0, 10)
-					.map((o) => [
-						o.orderNumber as string,
-						o.customerEmail as string,
-						formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
-						statusBadge(o.status as string),
-						formatDate(o.createdAt as string),
-					]),
+				[
+					{ key: "order", label: "Order" },
+					{ key: "customer", label: "Customer" },
+					{ key: "total", label: "Total" },
+					{ key: "status", label: "Status", format: "badge" },
+					{ key: "date", label: "Date" },
+				],
+				allOrders.slice(0, 10).map((o) => ({
+					order: o.orderNumber as string,
+					customer: o.customerEmail as string,
+					total: formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
+					status: statusBadge(o.status as string),
+					date: formatDate(o.createdAt as string),
+				})),
+				{ emptyText: "No orders yet" },
 			),
 		],
 	};
@@ -76,12 +81,17 @@ export async function buildRecentOrdersWidget(ctx: PluginContext) {
 	return {
 		blocks: [
 			table(
-				["Order", "Total", "Status"],
-				recent.map((o) => [
-					o.orderNumber as string,
-					formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
-					statusBadge(o.status as string),
-				]),
+				[
+					{ key: "order", label: "Order" },
+					{ key: "total", label: "Total" },
+					{ key: "status", label: "Status", format: "badge" },
+				],
+				recent.map((o) => ({
+					order: o.orderNumber as string,
+					total: formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
+					status: statusBadge(o.status as string),
+				})),
+				{ emptyText: "No recent orders" },
 			),
 		],
 	};

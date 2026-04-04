@@ -15,24 +15,32 @@ export async function buildCouponList(ctx: PluginContext) {
 			header("Coupons"),
 			button("New Coupon", "coupon:create", undefined, "primary"),
 			table(
-				["Code", "Type", "Value", "Status", "Uses", "Created"],
+				[
+					{ key: "code", label: "Code" },
+					{ key: "type", label: "Type" },
+					{ key: "value", label: "Value" },
+					{ key: "status", label: "Status", format: "badge" },
+					{ key: "uses", label: "Uses" },
+					{ key: "created", label: "Created" },
+				],
 				items.map((c) => {
 					const type = c.type as string;
-					const value = c.value as number;
-					let display = String(value);
-					if (type === "percentage") display = `${value}%`;
-					else if (type === "fixed_amount") display = `$${value}`;
+					const val = c.value as number;
+					let display = String(val);
+					if (type === "percentage") display = `${val}%`;
+					else if (type === "fixed_amount") display = `$${val}`;
 					else if (type === "free_shipping") display = "Free Shipping";
 
-					return [
-						c.code as string,
+					return {
+						code: c.code as string,
 						type,
-						display,
-						statusBadge(c.status as string),
-						`${c.usageCount ?? 0}${c.usageLimit ? `/${c.usageLimit}` : ""}`,
-						formatDate(c.createdAt as string),
-					];
+						value: display,
+						status: statusBadge(c.status as string),
+						uses: `${c.usageCount ?? 0}${c.usageLimit ? `/${c.usageLimit}` : ""}`,
+						created: formatDate(c.createdAt as string),
+					};
 				}),
+				{ emptyText: "No coupons yet" },
 			),
 		],
 	};
