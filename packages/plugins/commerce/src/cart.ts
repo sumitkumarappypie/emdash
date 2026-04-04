@@ -179,6 +179,53 @@ export async function getCartItems(
 	return result.items.map((item) => item.data);
 }
 
+export async function mergeCarts(
+	cartStorage: StorageCollection<Cart>,
+	cartItemStorage: StorageCollection<CartItem>,
+	sourceCartId: string,
+	targetCartId: string,
+): Promise<Cart> {
+	const sourceCart = await cartStorage.get(sourceCartId);
+	const targetCart = await cartStorage.get(targetCartId);
+	if (!sourceCart) throw new CommerceError("CART_NOT_FOUND", "Source cart not found");
+	if (!targetCart) throw new CommerceError("CART_NOT_FOUND", "Target cart not found");
+
+	const sourceItems = await getCartItems(cartItemStorage, sourceCartId);
+	const targetItems = await getCartItems(cartItemStorage, targetCartId);
+
+	for (const sourceItem of sourceItems) {
+		const matchKey = `${sourceItem.productId}:${sourceItem.variantId ?? ""}`;
+		const existing = targetItems.find((t) => `${t.productId}:${t.variantId ?? ""}` === matchKey);
+
+		if (existing) {
+			// Larger quantity wins
+			if (sourceItem.quantity > existing.quantity) {
+				await cartItemStorage.put(existing.id, {
+					...existing,
+					quantity: sourceItem.quantity,
+					totalPrice: Math.round(existing.unitPrice * sourceItem.quantity * 100) / 100,
+				});
+			}
+		} else {
+			// New item — copy to target cart
+			const newId = generateId();
+			await cartItemStorage.put(newId, {
+				...sourceItem,
+				id: newId,
+				cartId: targetCartId,
+			});
+		}
+
+		// Delete source item
+		await cartItemStorage.delete(sourceItem.id);
+	}
+
+	// Delete source cart
+	await cartStorage.delete(sourceCartId);
+
+	return targetCart;
+}
+
 export async function recalculateCart(
 	cartStorage: StorageCollection<Cart>,
 	cartItemStorage: StorageCollection<CartItem>,

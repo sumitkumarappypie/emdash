@@ -9,6 +9,7 @@ import {
 	removeCartItem,
 	getCartItems,
 	recalculateCart,
+	mergeCarts,
 } from "./cart.js";
 import {
 	createCategory,
@@ -55,6 +56,38 @@ export default definePlugin({
 
 		"plugin:activate": async (_event: unknown, ctx: PluginContext) => {
 			ctx.log.info("Commerce plugin activated");
+			// Schedule daily cart cleanup
+			if (ctx.cron) {
+				await ctx.cron.schedule("cleanup-expired-carts", {
+					schedule: "0 3 * * *", // Daily at 3 AM
+				});
+			}
+		},
+
+		cron: {
+			handler: async (event: { name: string }, ctx: PluginContext) => {
+				if (event.name === "cleanup-expired-carts") {
+					const now = new Date().toISOString();
+					// Query carts and check expiry in app code since storage may not support $lt
+					const result = await ctx.storage.carts!.query({ limit: 100 });
+					let cleaned = 0;
+					for (const cart of result.items) {
+						const cartData = cart.data as Record<string, unknown>;
+						if (cartData.expiresAt && (cartData.expiresAt as string) < now) {
+							const cartItems = await ctx.storage.cartItems!.query({
+								where: { cartId: cart.id },
+								limit: 1000,
+							});
+							for (const item of cartItems.items) {
+								await ctx.storage.cartItems!.delete(item.id);
+							}
+							await ctx.storage.carts!.delete(cart.id);
+							cleaned++;
+						}
+					}
+					ctx.log.info(`Cleaned up ${cleaned} expired carts`);
+				}
+			},
 		},
 	},
 
@@ -162,6 +195,19 @@ export default definePlugin({
 					);
 				}
 				return { removed };
+			},
+		},
+
+		"cart/merge": {
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const merged = await mergeCarts(
+					ctx.storage.carts!,
+					ctx.storage.cartItems!,
+					routeCtx.input.sourceCartId as string,
+					routeCtx.input.targetCartId as string,
+				);
+				await recalculateCart(ctx.storage.carts!, ctx.storage.cartItems!, merged.id);
+				return merged;
 			},
 		},
 
