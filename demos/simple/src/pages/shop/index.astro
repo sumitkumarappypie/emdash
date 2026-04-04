@@ -8,7 +8,18 @@ const res = await fetch(new URL(`${API_BASE}/products/list`, Astro.url), {
 	headers: { "Content-Type": "application/json" },
 });
 const body = await res.json();
-const products = body?.data?.items ?? [];
+const rawProducts = body?.data?.items ?? [];
+
+// Map to typed shape to avoid `as` casts in template
+const products = rawProducts.map((p: any) => ({
+	slug: p.slug ?? "",
+	name: p.name ?? "",
+	shortDescription: p.shortDescription ?? "",
+	basePrice: Number(p.basePrice ?? 0),
+	compareAtPrice: p.compareAtPrice ? Number(p.compareAtPrice) : null,
+	status: p.status ?? "draft",
+	images: Array.isArray(p.images) ? p.images : [],
+}));
 ---
 
 <Base title="Shop">
@@ -19,12 +30,12 @@ const products = body?.data?.items ?? [];
 			<p class="shop-empty">No products available yet. Check back soon!</p>
 		) : (
 			<div class="product-grid">
-				{products.map((product: Record<string, unknown>) => (
+				{products.map((product) => (
 					<a href={`/shop/${product.slug}`} class="product-card">
-						{(product.images as Array<{url: string; alt: string}>)?.length > 0 ? (
+						{product.images.length > 0 ? (
 							<img
-								src={(product.images as Array<{url: string}>)[0]!.url}
-								alt={(product.images as Array<{alt: string}>)[0]!.alt || (product.name as string)}
+								src={product.images[0].url}
+								alt={product.images[0].alt || product.name}
 								class="product-card-image"
 							/>
 						) : (
@@ -42,11 +53,11 @@ const products = body?.data?.items ?? [];
 							<div class="product-card-price">
 								{product.compareAtPrice ? (
 									<>
-										<span class="price-compare">${(product.compareAtPrice as number).toFixed(2)}</span>
-										<span class="price-current">${(product.basePrice as number).toFixed(2)}</span>
+										<span class="price-compare">${product.compareAtPrice.toFixed(2)}</span>
+										<span class="price-current">${product.basePrice.toFixed(2)}</span>
 									</>
 								) : (
-									<span class="price-current">${(product.basePrice as number).toFixed(2)}</span>
+									<span class="price-current">${product.basePrice.toFixed(2)}</span>
 								)}
 							</div>
 							{product.status === "active" && (

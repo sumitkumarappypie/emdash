@@ -71,9 +71,9 @@ const variants = product.variants ?? [];
 					<div class="product-variants">
 						<label for="variant-select">Options:</label>
 						<select id="variant-select" class="variant-select">
-							{variants.map((v: Record<string, unknown>) => (
-								<option value={v.id as string}>
-									{v.name}{v.price !== null ? ` — $${(v.price as number).toFixed(2)}` : ""}
+							{variants.map((v) => (
+								<option value={v.id}>
+									{v.name}{v.price !== null ? ` — $${Number(v.price).toFixed(2)}` : ""}
 								</option>
 							))}
 						</select>
