@@ -1,19 +1,6 @@
+import type { StorageCollection } from "./storage-types.js";
 import type { Customer } from "./types.js";
 import { createCustomerSchema, updateCustomerSchema } from "./validation.js";
-
-type StorageCollection = {
-	get(id: string): Promise<Customer | null>;
-	put(id: string, data: Customer): Promise<void>;
-	delete(id: string): Promise<boolean>;
-	exists(id: string): Promise<boolean>;
-	query(opts?: {
-		where?: Record<string, unknown>;
-		orderBy?: Record<string, string>;
-		limit?: number;
-		cursor?: string;
-	}): Promise<{ items: Array<{ id: string; data: Customer }>; hasMore: boolean; cursor?: string }>;
-	count(where?: Record<string, unknown>): Promise<number>;
-};
 
 function generateId(): string {
 	return crypto.randomUUID();
@@ -33,6 +20,7 @@ export async function createCustomer(
 		email: validated.email,
 		name: validated.name,
 		phone: validated.phone,
+		passwordHash: null,
 		defaultShippingAddress: validated.defaultShippingAddress,
 		defaultBillingAddress: validated.defaultBillingAddress,
 		totalOrders: 0,

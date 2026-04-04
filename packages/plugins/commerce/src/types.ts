@@ -197,6 +197,7 @@ export interface Customer {
 	email: string;
 	name: string;
 	phone: string;
+	passwordHash: string | null; // null for guest customers (created via checkout)
 	defaultShippingAddress: Address | null;
 	defaultBillingAddress: Address | null;
 	totalOrders: number;
