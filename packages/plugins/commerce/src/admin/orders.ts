@@ -4,7 +4,8 @@ import {
 	header,
 	table,
 	button,
-	statsRow,
+	fields,
+	stats,
 	formatCurrency,
 	formatDate,
 	statusBadge,
@@ -63,7 +64,7 @@ export async function handleOrderAction(
 		return {
 			blocks: [
 				header(`Order ${o.orderNumber}`),
-				statsRow([
+				stats([
 					{ label: "Status", value: statusBadge(o.status as string) },
 					{ label: "Payment", value: statusBadge(o.paymentStatus as string) },
 					{ label: "Fulfillment", value: statusBadge(o.fulfillmentStatus as string) },
@@ -72,14 +73,11 @@ export async function handleOrderAction(
 						value: formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
 					},
 				]),
-				{
-					type: "section",
-					fields: [
-						{ type: "mrkdwn", text: `*Customer:* ${o.customerName}` },
-						{ type: "mrkdwn", text: `*Email:* ${o.customerEmail}` },
-						{ type: "mrkdwn", text: `*Date:* ${formatDate(o.createdAt as string)}` },
-					],
-				},
+				fields([
+					{ label: "Customer", value: o.customerName as string },
+					{ label: "Email", value: o.customerEmail as string },
+					{ label: "Date", value: formatDate(o.createdAt as string) },
+				]),
 				header("Items"),
 				table(
 					[

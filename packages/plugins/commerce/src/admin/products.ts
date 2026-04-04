@@ -17,7 +17,7 @@ export async function buildProductList(ctx: PluginContext) {
 			{
 				type: "actions",
 				elements: [
-					{ type: "button", text: "New Product", action_id: "product:create", style: "primary" },
+					{ type: "button", label: "New Product", action_id: "product:create", style: "primary" },
 				],
 			},
 			table(
@@ -148,7 +148,7 @@ function buildProductForm(existing?: Record<string, unknown>) {
 			{
 				type: "actions",
 				elements: [
-					{ type: "button", text: "Cancel", action_id: "nav:products" },
+					{ type: "button", label: "Cancel", action_id: "nav:products" },
 					...(isEdit
 						? [
 								{
@@ -170,23 +170,20 @@ function buildProductDetail(p: Record<string, unknown>) {
 		blocks: [
 			header(p.name as string),
 			{
-				type: "section",
+				type: "fields",
 				fields: [
-					{ type: "mrkdwn", text: `*Status:* ${statusBadge(p.status as string)}` },
+					{ label: "Status", value: statusBadge(p.status as string) },
 					{
-						type: "mrkdwn",
-						text: `*Price:* ${formatCurrency(p.basePrice as number, (p.currency as string) ?? "USD")}`,
+						label: "Price",
+						value: formatCurrency(p.basePrice as number, (p.currency as string) ?? "USD"),
 					},
-					{ type: "mrkdwn", text: `*SKU:* ${(p.sku as string) || "—"}` },
-					{ type: "mrkdwn", text: `*Type:* ${(p.productType as string) || "physical"}` },
+					{ label: "SKU", value: (p.sku as string) || "—" },
+					{ label: "Type", value: (p.productType as string) || "physical" },
 					{
-						type: "mrkdwn",
-						text: `*Inventory:* ${p.trackInventory ? String(p.inventoryQuantity) : "Not tracked"}`,
+						label: "Inventory",
+						value: p.trackInventory ? String(p.inventoryQuantity) : "Not tracked",
 					},
-					{
-						type: "mrkdwn",
-						text: `*Featured:* ${p.isFeatured ? "Yes" : "No"}`,
-					},
+					{ label: "Featured", value: p.isFeatured ? "Yes" : "No" },
 				],
 			},
 			...(p.shortDescription ? [{ type: "section", text: p.shortDescription as string }] : []),
@@ -199,7 +196,7 @@ function buildProductDetail(p: Record<string, unknown>) {
 						action_id: `product:edit:${p.id}`,
 						style: "primary",
 					},
-					{ type: "button", text: "Back to Products", action_id: "nav:products" },
+					{ type: "button", label: "Back to Products", action_id: "nav:products" },
 				],
 			},
 		],

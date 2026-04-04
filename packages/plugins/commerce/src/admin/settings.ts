@@ -25,12 +25,12 @@ export async function buildSettingsPage(ctx: PluginContext) {
 						type: "select",
 						value: currency,
 						options: [
-							{ text: "USD", value: "USD" },
-							{ text: "EUR", value: "EUR" },
-							{ text: "GBP", value: "GBP" },
-							{ text: "INR", value: "INR" },
-							{ text: "CAD", value: "CAD" },
-							{ text: "AUD", value: "AUD" },
+							{ label: "USD", value: "USD" },
+							{ label: "EUR", value: "EUR" },
+							{ label: "GBP", value: "GBP" },
+							{ label: "INR", value: "INR" },
+							{ label: "CAD", value: "CAD" },
+							{ label: "AUD", value: "AUD" },
 						],
 					},
 					{
@@ -41,7 +41,7 @@ export async function buildSettingsPage(ctx: PluginContext) {
 					},
 				],
 			},
-			{ type: "button", text: "Save Settings", action_id: "settings:save", style: "primary" },
+			{ type: "button", label: "Save Settings", action_id: "settings:save", style: "primary" },
 		],
 	};
 }

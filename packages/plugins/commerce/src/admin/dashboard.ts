@@ -1,6 +1,6 @@
 import type { PluginContext } from "emdash";
 
-import { header, statsRow, table, formatCurrency, formatDate, statusBadge } from "./blocks.js";
+import { header, stats, table, formatCurrency, formatDate, statusBadge } from "./blocks.js";
 
 export async function buildDashboard(ctx: PluginContext) {
 	const orders = await ctx.storage.orders!.query({
@@ -23,7 +23,7 @@ export async function buildDashboard(ctx: PluginContext) {
 	return {
 		blocks: [
 			header("Commerce Dashboard"),
-			statsRow([
+			stats([
 				{ label: "Today's Revenue", value: formatCurrency(todayRevenue, "USD") },
 				{ label: "Orders Today", value: String(todayOrders.length) },
 				{ label: "Pending Fulfillment", value: String(pendingCount) },
@@ -62,7 +62,7 @@ export async function buildRevenueWidget(ctx: PluginContext) {
 
 	return {
 		blocks: [
-			statsRow([
+			stats([
 				{ label: "Total Revenue", value: formatCurrency(totalRevenue, "USD") },
 				{ label: "Paid Orders", value: String(paidOrders.length) },
 			]),

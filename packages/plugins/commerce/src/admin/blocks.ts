@@ -1,4 +1,5 @@
 // Shared Block Kit helpers for commerce admin pages
+// See packages/blocks/src/types.ts for the correct block shapes
 
 const NAV_TABS = [
 	{ id: "dashboard", label: "Dashboard" },
@@ -15,7 +16,7 @@ export function commerceNav(activeTab: string) {
 		type: "actions",
 		elements: NAV_TABS.map((tab) => ({
 			type: "button",
-			text: tab.label,
+			label: tab.label,
 			action_id: `nav:${tab.id}`,
 			...(tab.id === activeTab ? { style: "primary" } : {}),
 		})),
@@ -28,6 +29,16 @@ export function header(text: string) {
 
 export function section(text: string) {
 	return { type: "section", text };
+}
+
+// FieldsBlock: type: "fields", fields: [{label, value}]
+export function fields(items: Array<{ label: string; value: string }>) {
+	return { type: "fields", fields: items };
+}
+
+// StatsBlock: type: "stats", items: [{label, value}]
+export function stats(items: Array<{ label: string; value: string }>) {
+	return { type: "stats", items };
 }
 
 export function table(
@@ -44,25 +55,19 @@ export function table(
 	};
 }
 
+// ButtonElement uses "label" not "text"
 export function button(
-	text: string,
+	label: string,
 	actionId: string,
 	value?: string,
-	style?: "primary" | "danger",
+	style?: "primary" | "danger" | "secondary",
 ) {
 	return {
 		type: "button",
-		text,
+		label,
 		action_id: actionId,
 		...(value ? { value } : {}),
 		...(style ? { style } : {}),
-	};
-}
-
-export function statsRow(stats: Array<{ label: string; value: string }>) {
-	return {
-		type: "section",
-		fields: stats.map((s) => ({ type: "mrkdwn", text: `*${s.label}*\n${s.value}` })),
 	};
 }
 
