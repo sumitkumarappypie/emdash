@@ -1,0 +1,388 @@
+---
+// @ts-ignore virtual module
+import { Layout } from "virtual:commerce-storefront/config";
+
+export const prerender = false;
+
+const emdash = (Astro.locals as any).emdash;
+if (!emdash?.handlePluginApiRoute) return Astro.redirect("/404");
+
+const statusResult = await emdash.handlePluginApiRoute(
+	"commerce", "POST", "/storefront/status",
+	new Request("https://internal/status", { method: "POST", body: "{}" }),
+);
+if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect("/404");
+
+const guestCheckout = statusResult.data?.guestCheckout ?? true;
+---
+
+<Layout title="Checkout">
+	<main class="checkout-page" data-guest-checkout={guestCheckout ? "true" : "false"}>
+		<h1>Checkout</h1>
+		<div id="checkout-loading" class="checkout-loading">Loading order summary...</div>
+		<div id="checkout-empty" style="display:none">
+			<p>Your cart is empty. <a href="/shop">Continue shopping</a>.</p>
+		</div>
+		<div id="checkout-form-wrap" style="display:none">
+			<div class="checkout-layout">
+				<div class="checkout-details">
+					<h2>Contact Information</h2>
+					<form id="checkout-form">
+						<div class="form-field">
+							<label for="c-name">Full Name</label>
+							<input type="text" id="c-name" name="name" required />
+						</div>
+						<div class="form-field">
+							<label for="c-email">Email</label>
+							<input type="email" id="c-email" name="email" required />
+						</div>
+						<div class="form-field">
+							<label for="c-notes">Order Notes (optional)</label>
+							<textarea id="c-notes" name="notes" rows="3"></textarea>
+						</div>
+						<button type="submit" class="place-order-btn" id="place-order-btn">Place Order</button>
+						<p id="checkout-error" class="checkout-error" style="display:none"></p>
+					</form>
+				</div>
+				<div class="checkout-summary">
+					<h2>Order Summary</h2>
+					<div id="checkout-items"></div>
+					<div class="checkout-total">
+						<span>Total:</span>
+						<strong id="checkout-total-amount">$0.00</strong>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="checkout-login-required" style="display:none" class="checkout-login-required">
+		<h2>Account Required</h2>
+		<p>Please log in or create an account to complete your purchase.</p>
+		<a href="/shop/login" class="login-btn">Log In</a>
+		<p class="back-to-shop"><a href="/shop">Back to Shop</a></p>
+	</div>
+	<div id="checkout-success" style="display:none" class="checkout-success">
+			<h2>Order Confirmed!</h2>
+			<p>Your order <strong id="order-number"></strong> has been placed.</p>
+			<p>We've sent a confirmation to <span id="order-email"></span>.</p>
+			<a href="/shop" class="continue-shopping-btn">Continue Shopping</a>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	const pageEl = document.querySelector(".checkout-page")!;
+	const GUEST_CHECKOUT = pageEl.getAttribute("data-guest-checkout") === "true";
+	const API_BASE = "/_emdash/api/plugins/commerce";
+	const loadingEl = document.getElementById("checkout-loading")!;
+	const emptyEl = document.getElementById("checkout-empty")!;
+	const formWrap = document.getElementById("checkout-form-wrap")!;
+	const successEl = document.getElementById("checkout-success")!;
+	const loginRequiredEl = document.getElementById("checkout-login-required")!;
+	const itemsEl = document.getElementById("checkout-items")!;
+	const totalEl = document.getElementById("checkout-total-amount")!;
+	const errorEl = document.getElementById("checkout-error")!;
+
+	async function loadSummary() {
+		// If guest checkout is disabled, check if customer is logged in
+		if (!GUEST_CHECKOUT) {
+			const customerToken = localStorage.getItem("commerce_customer_token");
+			if (!customerToken) {
+				loadingEl.style.display = "none";
+				loginRequiredEl.style.display = "block";
+				return;
+			}
+			const sessionRes = await fetch(`${API_BASE}/customer/session`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ customerToken }),
+			});
+			const sessionBody = await sessionRes.json();
+			if (!sessionBody?.data?.authenticated) {
+				localStorage.removeItem("commerce_customer_token");
+				loadingEl.style.display = "none";
+				loginRequiredEl.style.display = "block";
+				return;
+			}
+		}
+
+		const cartId = localStorage.getItem("commerce_cart_id");
+		if (!cartId) { showEmpty(); return; }
+		const res = await fetch(`${API_BASE}/cart/get`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ cartId }),
+		});
+		const body = await res.json();
+		const cart = body?.data;
+		if (!cart?.items?.length) { showEmpty(); return; }
+		renderSummary(cart);
+	}
+
+	function showEmpty() {
+		loadingEl.style.display = "none";
+		emptyEl.style.display = "block";
+	}
+
+	function renderSummary(cart: { items: Array<Record<string, unknown>> }) {
+		loadingEl.style.display = "none";
+		formWrap.style.display = "block";
+		itemsEl.replaceChildren();
+
+		let total = 0;
+		for (const item of cart.items) {
+			const price = Number(item.unitPrice ?? item.price ?? 0);
+			const qty = Number(item.quantity ?? 1);
+			const lineTotal = price * qty;
+			total += lineTotal;
+
+			const row = document.createElement("div");
+			row.className = "summary-item";
+			const name = document.createElement("span");
+			name.textContent = `${(item.productName as string) || "Product"} x${qty}`;
+			row.appendChild(name);
+			const amt = document.createElement("span");
+			amt.textContent = `$${lineTotal.toFixed(2)}`;
+			row.appendChild(amt);
+			itemsEl.appendChild(row);
+		}
+		totalEl.textContent = `$${total.toFixed(2)}`;
+	}
+
+	document.getElementById("checkout-form")?.addEventListener("submit", async (e) => {
+		e.preventDefault();
+		const btn = document.getElementById("place-order-btn") as HTMLButtonElement;
+		btn.disabled = true;
+		btn.textContent = "Placing order...";
+		errorEl.style.display = "none";
+
+		const name = (document.getElementById("c-name") as HTMLInputElement).value;
+		const email = (document.getElementById("c-email") as HTMLInputElement).value;
+		const notes = (document.getElementById("c-notes") as HTMLTextAreaElement).value;
+		const cartId = localStorage.getItem("commerce_cart_id");
+
+		const customerToken = localStorage.getItem("commerce_customer_token");
+
+		try {
+			const res = await fetch(`${API_BASE}/checkout/create`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					cartId,
+					name,
+					email,
+					customerNotes: notes || undefined,
+					paymentProvider: "manual",
+					customerToken: customerToken || undefined,
+				}),
+			});
+			const body = await res.json();
+			if (body?.data?.orderNumber) {
+				localStorage.removeItem("commerce_cart_id");
+				formWrap.style.display = "none";
+				successEl.style.display = "block";
+				document.getElementById("order-number")!.textContent = body.data.orderNumber;
+				document.getElementById("order-email")!.textContent = email;
+			} else {
+				errorEl.textContent = body?.data?.message || body?.error?.message || "Failed to place order";
+				errorEl.style.display = "block";
+				btn.disabled = false;
+				btn.textContent = "Place Order";
+			}
+		} catch {
+			errorEl.textContent = "Network error. Please try again.";
+			errorEl.style.display = "block";
+			btn.disabled = false;
+			btn.textContent = "Place Order";
+		}
+	});
+
+	loadSummary();
+</script>
+
+<style is:global>
+	.checkout-page {
+		max-width: var(--wide-width, 1200px);
+		margin: 0 auto;
+		padding: 2rem var(--spacing-6, 1.5rem) 4rem;
+	}
+
+	.checkout-page h1 {
+		font-size: 2rem;
+		font-weight: 700;
+		margin-bottom: 2rem;
+		letter-spacing: -0.02em;
+	}
+
+	.checkout-loading { text-align: center; padding: 4rem 0; color: var(--color-muted, #888); }
+
+	.checkout-layout {
+		display: grid;
+		grid-template-columns: 1fr 380px;
+		gap: 3rem;
+		align-items: start;
+	}
+
+	.checkout-details h2, .checkout-summary h2 {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin-bottom: 1.5rem;
+		letter-spacing: -0.01em;
+	}
+
+	.form-field { margin-bottom: 1.25rem; }
+
+	.form-field label {
+		display: block;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		margin-bottom: 0.375rem;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.form-field input, .form-field textarea {
+		width: 100%;
+		padding: 0.625rem 0.75rem;
+		border: 1px solid var(--color-border, #e5e5e5);
+		border-radius: 8px;
+		font: inherit;
+		background: var(--color-bg, #fff);
+		color: var(--color-text, #1a1a1a);
+		box-sizing: border-box;
+		transition: border-color 0.15s;
+	}
+
+	.form-field input:focus, .form-field textarea:focus {
+		outline: none;
+		border-color: var(--color-accent, #0066cc);
+		box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+	}
+
+	.form-field textarea { resize: vertical; min-height: 80px; }
+
+	.place-order-btn {
+		width: 100%;
+		padding: 0.875rem;
+		font: inherit;
+		font-size: 1rem;
+		font-weight: 600;
+		background: var(--color-accent, #0066cc);
+		color: white;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		margin-top: 0.75rem;
+		transition: background 0.2s, transform 0.1s;
+	}
+
+	.place-order-btn:hover { background: var(--color-accent-hover, #0052a3); }
+	.place-order-btn:active { transform: scale(0.98); }
+	.place-order-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+	.checkout-error {
+		color: #dc2626;
+		font-size: 0.875rem;
+		margin-top: 0.75rem;
+		padding: 0.5rem 0.75rem;
+		background: #fef2f2;
+		border-radius: 6px;
+		border: 1px solid #fecaca;
+	}
+
+	.checkout-summary {
+		background: var(--color-surface, #f7f7f7);
+		padding: 1.5rem;
+		border-radius: 12px;
+		border: 1px solid var(--color-border, #e5e5e5);
+		align-self: start;
+		position: sticky;
+		top: 5rem;
+	}
+
+	.summary-item {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.625rem 0;
+		border-bottom: 1px solid var(--color-border, #e5e5e5);
+		font-size: 0.875rem;
+	}
+
+	.summary-item:last-of-type { border-bottom: none; }
+
+	.checkout-total {
+		display: flex;
+		justify-content: space-between;
+		padding-top: 1rem;
+		margin-top: 0.5rem;
+		font-size: 1.25rem;
+		font-weight: 700;
+		border-top: 2px solid var(--color-border, #e5e5e5);
+	}
+
+	.checkout-success {
+		text-align: center;
+		padding: 4rem 0;
+	}
+
+	.checkout-success h2 {
+		color: #059669;
+		font-size: 1.75rem;
+		margin-bottom: 1rem;
+	}
+
+	.checkout-success p {
+		margin-bottom: 0.5rem;
+		color: var(--color-text-secondary, #525252);
+		font-size: 1.05rem;
+	}
+
+	.continue-shopping-btn {
+		display: inline-block;
+		margin-top: 1.5rem;
+		padding: 0.75rem 2rem;
+		background: var(--color-accent, #0066cc);
+		color: white;
+		text-decoration: none;
+		border-radius: 8px;
+		font-weight: 600;
+		transition: background 0.2s;
+	}
+
+	.continue-shopping-btn:hover { background: var(--color-accent-hover, #0052a3); }
+
+	.checkout-login-required {
+		text-align: center;
+		padding: 4rem 0;
+	}
+
+	.checkout-login-required h2 {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+	}
+
+	.checkout-login-required p {
+		color: var(--color-text-secondary, #525252);
+		margin-bottom: 1.5rem;
+	}
+
+	.login-btn {
+		display: inline-block;
+		padding: 0.75rem 2rem;
+		background: var(--color-accent, #0066cc);
+		color: white;
+		text-decoration: none;
+		border-radius: 8px;
+		font-weight: 600;
+		transition: background 0.2s;
+	}
+
+	.login-btn:hover { background: var(--color-accent-hover, #0052a3); }
+
+	.back-to-shop { margin-top: 1rem; font-size: 0.875rem; }
+	.back-to-shop a { color: var(--color-accent, #0066cc); }
+
+	@media (max-width: 768px) {
+		.checkout-layout { grid-template-columns: 1fr; }
+		.checkout-summary { order: -1; position: static; }
+	}
+</style>

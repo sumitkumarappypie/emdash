@@ -1,0 +1,88 @@
+---
+// @ts-ignore virtual module
+import { Layout } from "virtual:commerce-storefront/config";
+
+export const prerender = false;
+
+const emdash = (Astro.locals as any).emdash;
+if (!emdash?.handlePluginApiRoute) return Astro.redirect("/404");
+
+const statusResult = await emdash.handlePluginApiRoute(
+	"commerce", "POST", "/storefront/status",
+	new Request("https://internal/status", { method: "POST", body: "{}" }),
+);
+if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect("/404");
+---
+
+<Layout title="Create Account">
+	<main class="auth-page">
+		<div class="auth-card">
+			<h1>Create Account</h1>
+			<form id="register-form">
+				<div class="form-field">
+					<label for="r-name">Full Name</label>
+					<input type="text" id="r-name" name="name" required autocomplete="name" />
+				</div>
+				<div class="form-field">
+					<label for="r-email">Email</label>
+					<input type="email" id="r-email" name="email" required autocomplete="email" />
+				</div>
+				<div class="form-field">
+					<label for="r-password">Password</label>
+					<input type="password" id="r-password" name="password" required autocomplete="new-password" />
+				</div>
+				<p id="register-error" class="auth-error" style="display:none"></p>
+				<button type="submit" class="auth-btn">Create Account</button>
+			</form>
+			<p class="auth-link">Already have an account? <a href="/shop/login">Log in</a></p>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	const API_BASE = "/_emdash/api/plugins/commerce";
+
+	// Redirect if already logged in
+	const existingToken = localStorage.getItem("commerce_customer_token");
+	if (existingToken) {
+		window.location.href = "/shop/account";
+	}
+
+	const errorEl = document.getElementById("register-error")!;
+
+	document.getElementById("register-form")?.addEventListener("submit", async (e) => {
+		e.preventDefault();
+		errorEl.style.display = "none";
+		const btn = (e.currentTarget as HTMLFormElement).querySelector("button[type=submit]") as HTMLButtonElement;
+		btn.disabled = true;
+		btn.textContent = "Creating account...";
+
+		const name = (document.getElementById("r-name") as HTMLInputElement).value;
+		const email = (document.getElementById("r-email") as HTMLInputElement).value;
+		const password = (document.getElementById("r-password") as HTMLInputElement).value;
+
+		try {
+			const res = await fetch(`${API_BASE}/customer/register`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name, email, password }),
+			});
+			const body = await res.json();
+			if (body?.data?.token) {
+				localStorage.setItem("commerce_customer_token", body.data.token);
+				window.location.href = "/shop";
+			} else {
+				const msg = body?.error?.message || body?.data?.message || "Registration failed. Please try again.";
+				errorEl.textContent = msg;
+				errorEl.style.display = "block";
+				btn.disabled = false;
+				btn.textContent = "Create Account";
+			}
+		} catch {
+			errorEl.textContent = "Network error. Please try again.";
+			errorEl.style.display = "block";
+			btn.disabled = false;
+			btn.textContent = "Create Account";
+		}
+	});
+</script>

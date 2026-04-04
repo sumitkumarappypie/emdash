@@ -1,0 +1,324 @@
+---
+// @ts-ignore virtual module
+import { Layout } from "virtual:commerce-storefront/config";
+
+export const prerender = false;
+
+const emdash = (Astro.locals as any).emdash;
+if (!emdash?.handlePluginApiRoute) return Astro.redirect("/404");
+
+const statusResult = await emdash.handlePluginApiRoute(
+	"commerce", "POST", "/storefront/status",
+	new Request("https://internal/status", { method: "POST", body: "{}" }),
+);
+if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect("/404");
+---
+
+<Layout title="My Account">
+	<main class="account-page">
+		<div id="account-loading" class="shop-loading">Loading account...</div>
+		<div id="account-login-prompt" style="display:none" class="auth-page">
+			<div class="auth-card">
+				<h1>Sign In Required</h1>
+				<p class="auth-prompt-text">Please log in to view your account.</p>
+				<a href="/shop/login?returnUrl=/shop/account" class="auth-btn auth-btn-link">Log In</a>
+				<p class="auth-link">Don't have an account? <a href="/shop/register">Create one</a></p>
+			</div>
+		</div>
+		<div id="account-content" style="display:none">
+			<h1>My Account</h1>
+			<div id="account-info" class="account-info"></div>
+			<h2>Order History</h2>
+			<div id="order-list" class="order-list"></div>
+			<button id="logout-btn" class="logout-btn">Log Out</button>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	const API_BASE = "/_emdash/api/plugins/commerce";
+	const loadingEl = document.getElementById("account-loading")!;
+	const loginPromptEl = document.getElementById("account-login-prompt")!;
+	const contentEl = document.getElementById("account-content")!;
+	const accountInfoEl = document.getElementById("account-info")!;
+	const orderListEl = document.getElementById("order-list")!;
+
+	async function loadAccount() {
+		const customerToken = localStorage.getItem("commerce_customer_token");
+		if (!customerToken) {
+			showLoginPrompt();
+			return;
+		}
+
+		// Verify session
+		const sessionRes = await fetch(`${API_BASE}/customer/session`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ customerToken }),
+		});
+		const sessionBody = await sessionRes.json();
+		if (!sessionBody?.data?.authenticated) {
+			localStorage.removeItem("commerce_customer_token");
+			showLoginPrompt();
+			return;
+		}
+
+		const customer = sessionBody.data.customer;
+		renderAccountInfo(customer);
+
+		// Load orders
+		const ordersRes = await fetch(`${API_BASE}/account/orders`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ customerToken }),
+		});
+		const ordersBody = await ordersRes.json();
+		renderOrders(ordersBody?.data?.items ?? []);
+
+		loadingEl.style.display = "none";
+		contentEl.style.display = "block";
+	}
+
+	function showLoginPrompt() {
+		loadingEl.style.display = "none";
+		loginPromptEl.style.display = "flex";
+	}
+
+	function renderAccountInfo(customer: Record<string, unknown> | null) {
+		accountInfoEl.replaceChildren();
+		if (!customer) return;
+
+		const card = document.createElement("div");
+		card.className = "account-info-card";
+
+		if (customer.name) {
+			const nameEl = document.createElement("p");
+			const nameLabel = document.createElement("strong");
+			nameLabel.textContent = "Name: ";
+			nameEl.appendChild(nameLabel);
+			const nameText = document.createTextNode(String(customer.name));
+			nameEl.appendChild(nameText);
+			card.appendChild(nameEl);
+		}
+
+		if (customer.email) {
+			const emailEl = document.createElement("p");
+			const emailLabel = document.createElement("strong");
+			emailLabel.textContent = "Email: ";
+			emailEl.appendChild(emailLabel);
+			const emailText = document.createTextNode(String(customer.email));
+			emailEl.appendChild(emailText);
+			card.appendChild(emailEl);
+		}
+
+		accountInfoEl.appendChild(card);
+	}
+
+	function renderOrders(orders: Array<Record<string, unknown>>) {
+		orderListEl.replaceChildren();
+
+		if (!orders.length) {
+			const empty = document.createElement("p");
+			empty.className = "orders-empty";
+			empty.textContent = "You haven't placed any orders yet.";
+			orderListEl.appendChild(empty);
+			return;
+		}
+
+		for (const order of orders) {
+			const card = document.createElement("div");
+			card.className = "order-card";
+
+			const header = document.createElement("div");
+			header.className = "order-card-header";
+
+			const orderNum = document.createElement("span");
+			orderNum.className = "order-number";
+			orderNum.textContent = String(order.orderNumber ?? order.id ?? "Order");
+			header.appendChild(orderNum);
+
+			const orderStatus = document.createElement("span");
+			orderStatus.className = "order-status";
+			orderStatus.textContent = String(order.status ?? "");
+			header.appendChild(orderStatus);
+
+			const orderDate = document.createElement("span");
+			orderDate.className = "order-date";
+			const rawDate = order.createdAt ?? order.placedAt;
+			if (rawDate) {
+				orderDate.textContent = new Date(String(rawDate)).toLocaleDateString();
+			}
+			header.appendChild(orderDate);
+
+			card.appendChild(header);
+
+			const total = document.createElement("p");
+			total.className = "order-total";
+			const totalLabel = document.createElement("strong");
+			totalLabel.textContent = "Total: ";
+			total.appendChild(totalLabel);
+			const totalText = document.createTextNode(
+				order.total != null ? `$${Number(order.total).toFixed(2)}` : "—",
+			);
+			total.appendChild(totalText);
+			card.appendChild(total);
+
+			orderListEl.appendChild(card);
+		}
+	}
+
+	document.getElementById("logout-btn")?.addEventListener("click", async () => {
+		const customerToken = localStorage.getItem("commerce_customer_token");
+		if (customerToken) {
+			try {
+				await fetch(`${API_BASE}/customer/logout`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ customerToken }),
+				});
+			} catch {
+				// ignore logout errors; clear local state regardless
+			}
+		}
+		localStorage.removeItem("commerce_customer_token");
+		localStorage.removeItem("commerce_cart_id");
+		window.location.href = "/shop";
+	});
+
+	loadAccount();
+</script>
+
+<style is:global>
+	.account-page {
+		max-width: var(--wide-width, 1200px);
+		margin: 0 auto;
+		padding: 2rem var(--spacing-6, 1.5rem) 4rem;
+	}
+
+	.shop-loading {
+		text-align: center;
+		padding: 4rem 0;
+		color: var(--color-muted, #888);
+	}
+
+	.account-page h1 {
+		font-size: 2rem;
+		font-weight: 700;
+		margin-bottom: 2rem;
+		letter-spacing: -0.02em;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.account-page h2 {
+		font-size: 1.25rem;
+		font-weight: 600;
+		margin: 2rem 0 1rem;
+		letter-spacing: -0.01em;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.account-info-card {
+		background: var(--color-surface, #f7f7f7);
+		border: 1px solid var(--color-border, #e5e5e5);
+		border-radius: 12px;
+		padding: 1.25rem 1.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.account-info-card p {
+		margin: 0.375rem 0;
+		font-size: 0.9375rem;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.orders-empty {
+		color: var(--color-muted, #888);
+		padding: 2rem 0;
+	}
+
+	.order-card {
+		border: 1px solid var(--color-border, #e5e5e5);
+		border-radius: 10px;
+		padding: 1rem 1.25rem;
+		margin-bottom: 0.75rem;
+		background: var(--color-bg, #fff);
+	}
+
+	.order-card-header {
+		display: flex;
+		gap: 1rem;
+		align-items: center;
+		flex-wrap: wrap;
+		margin-bottom: 0.5rem;
+	}
+
+	.order-number {
+		font-weight: 600;
+		font-size: 0.9375rem;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.order-status {
+		font-size: 0.8125rem;
+		font-weight: 500;
+		padding: 0.2rem 0.6rem;
+		border-radius: 99px;
+		background: var(--color-surface, #f0f0f0);
+		color: var(--color-muted, #555);
+		text-transform: capitalize;
+	}
+
+	.order-date {
+		font-size: 0.8125rem;
+		color: var(--color-muted, #888);
+		margin-left: auto;
+	}
+
+	.order-total {
+		font-size: 0.9375rem;
+		color: var(--color-text, #1a1a1a);
+		margin: 0;
+	}
+
+	.logout-btn {
+		margin-top: 2.5rem;
+		padding: 0.625rem 1.5rem;
+		font: inherit;
+		font-size: 0.9375rem;
+		font-weight: 500;
+		background: transparent;
+		color: var(--color-text, #1a1a1a);
+		border: 1px solid var(--color-border, #e5e5e5);
+		border-radius: 8px;
+		cursor: pointer;
+		transition: background 0.15s, border-color 0.15s;
+	}
+
+	.logout-btn:hover {
+		background: var(--color-surface, #f7f7f7);
+		border-color: var(--color-text, #1a1a1a);
+	}
+
+	.auth-prompt-text {
+		text-align: center;
+		color: var(--color-muted, #888);
+		margin-bottom: 1.5rem;
+		font-size: 0.9375rem;
+	}
+
+	.auth-btn-link {
+		display: block;
+		text-align: center;
+		text-decoration: none;
+		line-height: 1;
+		padding: 0.875rem;
+		font-size: 1rem;
+		font-weight: 600;
+		background: var(--color-accent, #0066cc);
+		color: white;
+		border-radius: 8px;
+		transition: background 0.2s;
+	}
+
+	.auth-btn-link:hover { background: var(--color-accent-hover, #0052a3); }
+</style>
