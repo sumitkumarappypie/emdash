@@ -1,6 +1,13 @@
 import { definePlugin } from "emdash";
 import type { PluginContext } from "emdash";
 
+import { buildCategoryPage, handleCategoryAction } from "./admin/categories.js";
+import { buildCouponList, handleCouponAction } from "./admin/coupons.js";
+import { buildCustomerList } from "./admin/customers.js";
+import { buildDashboard, buildRevenueWidget, buildRecentOrdersWidget } from "./admin/dashboard.js";
+import { buildOrderList, handleOrderAction } from "./admin/orders.js";
+import { buildProductList, handleProductAction } from "./admin/products.js";
+import { buildSettingsPage, handleSettingsAction } from "./admin/settings.js";
 import {
 	createCart,
 	getCart,
@@ -499,10 +506,43 @@ export default definePlugin({
 		},
 
 		admin: {
-			handler: async (_routeCtx: RouteCtx, _ctx: PluginContext) => {
-				return {
-					blocks: [{ type: "header", text: "Commerce Dashboard" }],
-				};
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const { type, page, action_id, value } = routeCtx.input as Record<string, string>;
+
+				if (type === "page_load") {
+					switch (page) {
+						case "/":
+							return buildDashboard(ctx);
+						case "/products":
+							return buildProductList(ctx);
+						case "/orders":
+							return buildOrderList(ctx);
+						case "/categories":
+							return buildCategoryPage(ctx);
+						case "/customers":
+							return buildCustomerList(ctx);
+						case "/coupons":
+							return buildCouponList(ctx);
+						case "/settings":
+							return buildSettingsPage(ctx);
+						case "widget:revenue":
+							return buildRevenueWidget(ctx);
+						case "widget:recent-orders":
+							return buildRecentOrdersWidget(ctx);
+					}
+				}
+
+				if (type === "block_action") {
+					if (action_id?.startsWith("product:")) return handleProductAction(action_id, value, ctx);
+					if (action_id?.startsWith("order:")) return handleOrderAction(action_id, value, ctx);
+					if (action_id?.startsWith("category:"))
+						return handleCategoryAction(action_id, value, ctx);
+					if (action_id?.startsWith("coupon:")) return handleCouponAction(action_id, value, ctx);
+					if (action_id?.startsWith("settings:"))
+						return handleSettingsAction(action_id, value, ctx);
+				}
+
+				return { blocks: [] };
 			},
 		},
 	},
