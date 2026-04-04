@@ -49,25 +49,10 @@ import { registerProvider, unregisterProvider, getProviderRegistry } from "./pro
 import { getTransactionsByOrder } from "./transactions.js";
 import { createVariant, listVariantsByProduct, updateVariant, deleteVariant } from "./variants.js";
 
+// Standard format: route handlers receive two args (routeCtx, pluginCtx)
+// via adapt-sandbox-entry.ts which splits the RouteContext.
 interface RouteCtx {
 	input: Record<string, unknown>;
-	requestMeta?: { user?: { role?: string } };
-}
-
-import { CommerceError } from "./cart.js";
-
-function requireEditor(routeCtx: RouteCtx): void {
-	const role = routeCtx.requestMeta?.user?.role;
-	if (!role || !["admin", "editor"].includes(role)) {
-		throw new CommerceError("FORBIDDEN", "Insufficient permissions");
-	}
-}
-
-function requireAdmin(routeCtx: RouteCtx): void {
-	const role = routeCtx.requestMeta?.user?.role;
-	if (role !== "admin") {
-		throw new CommerceError("FORBIDDEN", "Admin access required");
-	}
 }
 
 export default definePlugin({
@@ -143,7 +128,7 @@ export default definePlugin({
 
 		"categories/tree": {
 			public: true,
-			handler: async (_routeCtx: RouteCtx, ctx: PluginContext) => {
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
 				return getCategoryTree(ctx.storage.categories!);
 			},
 		},
@@ -261,7 +246,10 @@ export default definePlugin({
 				const confirmationToken = crypto.randomUUID();
 				await ctx.kv.set(`state:order-token:${order.id}`, confirmationToken);
 
-				await dispatchCommerceEvent(ctx, { type: "commerce:order:created", order });
+				await dispatchCommerceEvent(ctx, {
+					type: "commerce:order:created",
+					order,
+				});
 				return { ...order, confirmationToken };
 			},
 		},
@@ -292,9 +280,11 @@ export default definePlugin({
 
 		"admin/products/create": {
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
-				requireEditor(routeCtx);
 				const product = await createProduct(ctx.storage.products!, routeCtx.input);
-				await dispatchCommerceEvent(ctx, { type: "commerce:product:afterSave", product });
+				await dispatchCommerceEvent(ctx, {
+					type: "commerce:product:afterSave",
+					product,
+				});
 				return product;
 			},
 		},
@@ -313,7 +303,10 @@ export default definePlugin({
 					routeCtx.input,
 				);
 				if (product) {
-					await dispatchCommerceEvent(ctx, { type: "commerce:product:afterSave", product });
+					await dispatchCommerceEvent(ctx, {
+						type: "commerce:product:afterSave",
+						product,
+					});
 				}
 				return product;
 			},
@@ -415,7 +408,6 @@ export default definePlugin({
 
 		"admin/orders/refund": {
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
-				requireAdmin(routeCtx);
 				const refunded = await refundOrder(
 					ctx.storage.orders!,
 					ctx.storage.transactions!,
@@ -500,7 +492,7 @@ export default definePlugin({
 		},
 
 		"providers/list": {
-			handler: async (_routeCtx: RouteCtx, ctx: PluginContext) => {
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
 				return getProviderRegistry(ctx.kv);
 			},
 		},

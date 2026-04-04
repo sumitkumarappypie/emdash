@@ -1149,6 +1149,9 @@ importers:
       emdash:
         specifier: workspace:*
         version: link:../../core
+      zod:
+        specifier: ^4.3.5
+        version: 4.3.6
 
   packages/plugins/commerce-shipping-basic:
     dependencies:

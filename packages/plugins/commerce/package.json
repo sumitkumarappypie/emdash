@@ -12,7 +12,9 @@
 	"keywords": ["emdash", "cms", "plugin", "ecommerce", "shop", "cart", "checkout"],
 	"author": "EmDash CMS",
 	"license": "MIT",
-	"dependencies": {},
+	"dependencies": {
+		"zod": "^4.3.5"
+	},
 	"peerDependencies": {
 		"emdash": "workspace:*"
 	},
