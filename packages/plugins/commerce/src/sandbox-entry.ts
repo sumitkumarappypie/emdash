@@ -44,6 +44,23 @@ import { createVariant, listVariantsByProduct, updateVariant, deleteVariant } fr
 
 interface RouteCtx {
 	input: Record<string, unknown>;
+	requestMeta?: { user?: { role?: string } };
+}
+
+import { CommerceError } from "./cart.js";
+
+function requireEditor(routeCtx: RouteCtx): void {
+	const role = routeCtx.requestMeta?.user?.role;
+	if (!role || !["admin", "editor"].includes(role)) {
+		throw new CommerceError("FORBIDDEN", "Insufficient permissions");
+	}
+}
+
+function requireAdmin(routeCtx: RouteCtx): void {
+	const role = routeCtx.requestMeta?.user?.role;
+	if (role !== "admin") {
+		throw new CommerceError("FORBIDDEN", "Admin access required");
+	}
 }
 
 export default definePlugin({
@@ -233,8 +250,28 @@ export default definePlugin({
 						customerNotes?: string;
 					},
 				);
+				// Generate confirmation token for public order lookup
+				const confirmationToken = crypto.randomUUID();
+				await ctx.kv.set(`state:order-token:${order.id}`, confirmationToken);
+
 				await dispatchCommerceEvent(ctx, { type: "commerce:order:created", order });
-				return order;
+				return { ...order, confirmationToken };
+			},
+		},
+
+		"orders/confirmation": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const storedToken = await ctx.kv.get<string>(
+					`state:order-token:${routeCtx.input.orderId as string}`,
+				);
+				if (!storedToken || storedToken !== routeCtx.input.token) {
+					return { error: "UNAUTHORIZED", message: "Invalid confirmation token" };
+				}
+				const order = await getOrder(ctx.storage.orders!, routeCtx.input.orderId as string);
+				if (!order) return null;
+				const items = await getOrderItems(ctx.storage.orderItems!, order.id);
+				return { ...order, items };
 			},
 		},
 
@@ -248,6 +285,7 @@ export default definePlugin({
 
 		"admin/products/create": {
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				requireEditor(routeCtx);
 				const product = await createProduct(ctx.storage.products!, routeCtx.input);
 				await dispatchCommerceEvent(ctx, { type: "commerce:product:afterSave", product });
 				return product;
@@ -370,6 +408,7 @@ export default definePlugin({
 
 		"admin/orders/refund": {
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				requireAdmin(routeCtx);
 				const refunded = await refundOrder(
 					ctx.storage.orders!,
 					ctx.storage.transactions!,
