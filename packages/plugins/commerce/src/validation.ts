@@ -55,7 +55,7 @@ export const createProductSchema = z.object({
 			}),
 		)
 		.default([]),
-	metadata: z.record(z.unknown()).default({}),
+	metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const updateProductSchema = createProductSchema.partial();
@@ -104,7 +104,7 @@ export const addCartItemSchema = z.object({
 	productId: z.string().min(1),
 	variantId: z.string().nullable().default(null),
 	quantity: quantitySchema,
-	metadata: z.record(z.unknown()).default({}),
+	metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
 export const updateCartItemSchema = z.object({
@@ -244,4 +244,15 @@ export const customerQuerySchema = paginationSchema.extend({
 
 export const couponQuerySchema = paginationSchema.extend({
 	status: z.enum(["draft", "active", "archived"]).optional(),
+});
+
+export const customerRegisterSchema = z.object({
+	email: z.string().email(),
+	password: z.string().min(8).max(128),
+	name: z.string().min(1).max(200),
+});
+
+export const customerLoginSchema = z.object({
+	email: z.string().email(),
+	password: z.string().min(1),
 });
