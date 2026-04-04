@@ -1,5 +1,5 @@
 import { CommerceError } from "./cart.js";
-import type { Order, OrderItem, OrderStatus, FulfillmentStatus } from "./types.js";
+import type { Order, OrderItem, OrderStatus, FulfillmentStatus, Transaction } from "./types.js";
 
 type StorageCollection<T = unknown> = {
 	get(id: string): Promise<T | null>;
@@ -130,6 +130,71 @@ export async function fulfillOrder(
 		status: allFulfilled ? "shipped" : order.status,
 		trackingNumber: input.trackingNumber ?? order.trackingNumber,
 		trackingUrl: input.trackingUrl ?? order.trackingUrl,
+		updatedAt: new Date().toISOString(),
+	};
+
+	await orderStorage.put(orderId, updated);
+	return updated;
+}
+
+export async function refundOrder(
+	orderStorage: StorageCollection<Order>,
+	transactionStorage: StorageCollection<Transaction>,
+	orderId: string,
+	input: { amount?: number; reason?: string },
+	inventoryStorages?: {
+		orderItems: StorageCollection<OrderItem>;
+		products: StorageCollection<Record<string, unknown>>;
+	},
+): Promise<Order> {
+	const order = await orderStorage.get(orderId);
+	if (!order) throw new CommerceError("ORDER_NOT_FOUND", "Order not found");
+	if (order.paymentStatus === "unpaid")
+		throw new CommerceError("ORDER_NOT_PAID", "Cannot refund unpaid order");
+	if (order.paymentStatus === "refunded")
+		throw new CommerceError("ORDER_ALREADY_REFUNDED", "Order already fully refunded");
+
+	const refundAmount = input.amount ?? order.total;
+	if (refundAmount > order.total)
+		throw new CommerceError("REFUND_EXCEEDS_TOTAL", "Refund amount exceeds order total");
+
+	const isFullRefund = refundAmount >= order.total;
+	const transactionType = isFullRefund ? ("refund" as const) : ("partial_refund" as const);
+
+	// Record refund transaction
+	const txnId = crypto.randomUUID();
+	await transactionStorage.put(txnId, {
+		id: txnId,
+		orderId,
+		type: transactionType,
+		amount: refundAmount,
+		currency: order.currency,
+		provider: order.paymentProvider ?? "",
+		providerTransactionId: `refund-${txnId}`,
+		status: "succeeded",
+		metadata: { reason: input.reason ?? "" },
+		createdAt: new Date().toISOString(),
+	});
+
+	// Restore inventory on full refund
+	if (isFullRefund && inventoryStorages) {
+		const items = await getOrderItems(inventoryStorages.orderItems, orderId);
+		for (const item of items) {
+			const product = await inventoryStorages.products.get(item.productId);
+			if (!product || !product.trackInventory) continue;
+			const restored = ((product.inventoryQuantity as number) ?? 0) + item.quantity;
+			await inventoryStorages.products.put(item.productId, {
+				...product,
+				inventoryQuantity: restored,
+				updatedAt: new Date().toISOString(),
+			});
+		}
+	}
+
+	const updated: Order = {
+		...order,
+		paymentStatus: isFullRefund ? "refunded" : "partially_refunded",
+		status: isFullRefund ? "refunded" : order.status,
 		updatedAt: new Date().toISOString(),
 	};
 

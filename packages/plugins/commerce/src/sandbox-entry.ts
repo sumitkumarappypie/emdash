@@ -20,7 +20,15 @@ import {
 import { createOrderFromCart } from "./checkout.js";
 import { createCoupon, listCoupons, updateCoupon } from "./coupons.js";
 import { getCustomer, listCustomers } from "./customers.js";
-import { getOrder, getOrderItems, listOrders, updateOrderStatus, fulfillOrder } from "./orders.js";
+import { dispatchCommerceEvent } from "./hooks.js";
+import {
+	getOrder,
+	getOrderItems,
+	listOrders,
+	updateOrderStatus,
+	fulfillOrder,
+	refundOrder,
+} from "./orders.js";
 import {
 	createProduct,
 	getProduct,
@@ -160,7 +168,7 @@ export default definePlugin({
 		"checkout/create": {
 			public: true,
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
-				return createOrderFromCart(
+				const order = await createOrderFromCart(
 					{
 						carts: ctx.storage.carts!,
 						cartItems: ctx.storage.cartItems!,
@@ -179,6 +187,8 @@ export default definePlugin({
 						customerNotes?: string;
 					},
 				);
+				await dispatchCommerceEvent(ctx, { type: "commerce:order:created", order });
+				return order;
 			},
 		},
 
@@ -192,7 +202,9 @@ export default definePlugin({
 
 		"admin/products/create": {
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
-				return createProduct(ctx.storage.products!, routeCtx.input);
+				const product = await createProduct(ctx.storage.products!, routeCtx.input);
+				await dispatchCommerceEvent(ctx, { type: "commerce:product:afterSave", product });
+				return product;
 			},
 		},
 
@@ -204,7 +216,15 @@ export default definePlugin({
 
 		"admin/products/update": {
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
-				return updateProduct(ctx.storage.products!, routeCtx.input.id as string, routeCtx.input);
+				const product = await updateProduct(
+					ctx.storage.products!,
+					routeCtx.input.id as string,
+					routeCtx.input,
+				);
+				if (product) {
+					await dispatchCommerceEvent(ctx, { type: "commerce:product:afterSave", product });
+				}
+				return product;
 			},
 		},
 
@@ -284,11 +304,39 @@ export default definePlugin({
 
 		"admin/orders/status": {
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
-				return updateOrderStatus(
+				const existing = await getOrder(ctx.storage.orders!, routeCtx.input.id as string);
+				const previousStatus = existing?.status ?? "pending";
+				const updated = await updateOrderStatus(
 					ctx.storage.orders!,
 					routeCtx.input.id as string,
 					routeCtx.input.status as string,
 				);
+				if (updated) {
+					await dispatchCommerceEvent(ctx, {
+						type: "commerce:order:statusChanged",
+						order: updated,
+						previousStatus,
+					});
+				}
+				return updated;
+			},
+		},
+
+		"admin/orders/refund": {
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const refunded = await refundOrder(
+					ctx.storage.orders!,
+					ctx.storage.transactions!,
+					routeCtx.input.id as string,
+					routeCtx.input as { amount?: number; reason?: string },
+					{ orderItems: ctx.storage.orderItems!, products: ctx.storage.products! },
+				);
+				await dispatchCommerceEvent(ctx, {
+					type: "commerce:order:refunded",
+					order: refunded,
+					amount: (routeCtx.input.amount as number) ?? refunded.total,
+				});
+				return refunded;
 			},
 		},
 
