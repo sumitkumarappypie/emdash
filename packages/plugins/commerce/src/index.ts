@@ -27,15 +27,7 @@ export function commercePlugin(): PluginDescriptor {
 		entrypoint: "@emdash-cms/plugin-commerce/sandbox",
 		capabilities: ["read:content", "write:content", "email:send"],
 		storage: COMMERCE_STORAGE_CONFIG,
-		adminPages: [
-			{ path: "/", label: "Dashboard", icon: "dashboard" },
-			{ path: "/products", label: "Products", icon: "box" },
-			{ path: "/categories", label: "Categories", icon: "folder" },
-			{ path: "/orders", label: "Orders", icon: "receipt" },
-			{ path: "/customers", label: "Customers", icon: "users" },
-			{ path: "/coupons", label: "Coupons", icon: "tag" },
-			{ path: "/settings", label: "Settings", icon: "settings" },
-		],
+		adminPages: [{ path: "/", label: "Commerce", icon: "shopping-cart" }],
 		adminWidgets: [
 			{ id: "revenue", title: "Revenue", size: "half" },
 			{ id: "recent-orders", title: "Recent Orders", size: "half" },

@@ -1,5 +1,27 @@
 // Shared Block Kit helpers for commerce admin pages
 
+const NAV_TABS = [
+	{ id: "dashboard", label: "Dashboard" },
+	{ id: "products", label: "Products" },
+	{ id: "categories", label: "Categories" },
+	{ id: "orders", label: "Orders" },
+	{ id: "customers", label: "Customers" },
+	{ id: "coupons", label: "Coupons" },
+	{ id: "settings", label: "Settings" },
+];
+
+export function commerceNav(activeTab: string) {
+	return {
+		type: "actions",
+		elements: NAV_TABS.map((tab) => ({
+			type: "button",
+			text: tab.label,
+			action_id: `nav:${tab.id}`,
+			...(tab.id === activeTab ? { style: "primary" } : {}),
+		})),
+	};
+}
+
 export function header(text: string) {
 	return { type: "header", text };
 }

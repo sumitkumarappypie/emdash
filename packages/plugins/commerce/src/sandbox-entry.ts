@@ -1,6 +1,7 @@
 import { definePlugin } from "emdash";
 import type { PluginContext } from "emdash";
 
+import { commerceNav } from "./admin/blocks.js";
 import { buildCategoryPage, handleCategoryAction } from "./admin/categories.js";
 import { buildCouponList, handleCouponAction } from "./admin/coupons.js";
 import { buildCustomerList } from "./admin/customers.js";
@@ -501,30 +502,46 @@ export default definePlugin({
 			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
 				const { type, page, action_id, value } = routeCtx.input as Record<string, string>;
 
+				// Helper to prepend nav bar to page content
+				async function withNav(
+					tab: string,
+					builder: (c: PluginContext) => Promise<{ blocks: unknown[] }>,
+				) {
+					const result = await builder(ctx);
+					return { blocks: [commerceNav(tab), ...result.blocks] };
+				}
+
+				// Widget renders (no nav)
 				if (type === "page_load") {
-					switch (page) {
-						case "/":
-							return buildDashboard(ctx);
-						case "/products":
-							return buildProductList(ctx);
-						case "/orders":
-							return buildOrderList(ctx);
-						case "/categories":
-							return buildCategoryPage(ctx);
-						case "/customers":
-							return buildCustomerList(ctx);
-						case "/coupons":
-							return buildCouponList(ctx);
-						case "/settings":
-							return buildSettingsPage(ctx);
-						case "widget:revenue":
-							return buildRevenueWidget(ctx);
-						case "widget:recent-orders":
-							return buildRecentOrdersWidget(ctx);
-					}
+					if (page === "widget:revenue") return buildRevenueWidget(ctx);
+					if (page === "widget:recent-orders") return buildRecentOrdersWidget(ctx);
+					// Default page load → dashboard with nav
+					return withNav("dashboard", buildDashboard);
 				}
 
 				if (type === "block_action") {
+					// Navigation between sub-pages
+					if (action_id?.startsWith("nav:")) {
+						const tab = action_id.replace("nav:", "");
+						switch (tab) {
+							case "dashboard":
+								return withNav("dashboard", buildDashboard);
+							case "products":
+								return withNav("products", buildProductList);
+							case "orders":
+								return withNav("orders", buildOrderList);
+							case "categories":
+								return withNav("categories", buildCategoryPage);
+							case "customers":
+								return withNav("customers", buildCustomerList);
+							case "coupons":
+								return withNav("coupons", buildCouponList);
+							case "settings":
+								return withNav("settings", buildSettingsPage);
+						}
+					}
+
+					// Sub-page actions
 					if (action_id?.startsWith("product:")) return handleProductAction(action_id, value, ctx);
 					if (action_id?.startsWith("order:")) return handleOrderAction(action_id, value, ctx);
 					if (action_id?.startsWith("category:"))
