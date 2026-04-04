@@ -250,3 +250,48 @@ export async function recalculateCart(
 	await cartStorage.put(cartId, updated);
 	return updated;
 }
+
+export async function recalculateCartWithValidation(
+	cartStorage: StorageCollection<Cart>,
+	cartItemStorage: StorageCollection<CartItem>,
+	productStorage: StorageCollection<Record<string, unknown>>,
+	variantStorage: StorageCollection<Record<string, unknown>>,
+	cartId: string,
+): Promise<{ cart: Cart; removedItems: CartItem[] }> {
+	const cart = await cartStorage.get(cartId);
+	if (!cart) throw new CommerceError("CART_NOT_FOUND", "Cart not found");
+
+	const items = await getCartItems(cartItemStorage, cartId);
+	const removedItems: CartItem[] = [];
+
+	for (const item of items) {
+		const product = await productStorage.get(item.productId);
+		const isUnavailable = !product || (product.status as string) !== "active";
+
+		let variantUnavailable = false;
+		if (item.variantId) {
+			const variant = await variantStorage.get(item.variantId);
+			if (!variant || (variant.status as string) === "archived") {
+				variantUnavailable = true;
+			}
+		}
+
+		if (isUnavailable || variantUnavailable) {
+			removedItems.push(item);
+			await cartItemStorage.delete(item.id);
+		} else {
+			// Re-validate price from current product data
+			const currentPrice = (product!.basePrice as number) ?? item.unitPrice;
+			if (currentPrice !== item.unitPrice) {
+				await cartItemStorage.put(item.id, {
+					...item,
+					unitPrice: currentPrice,
+					totalPrice: Math.round(currentPrice * item.quantity * 100) / 100,
+				});
+			}
+		}
+	}
+
+	const updatedCart = await recalculateCart(cartStorage, cartItemStorage, cartId);
+	return { cart: updatedCart!, removedItems };
+}
