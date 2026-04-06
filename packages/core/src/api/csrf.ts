@@ -24,6 +24,10 @@ import { apiError } from "./error.js";
  * Returns a 403 Response if the check fails, or null if allowed.
  */
 export function checkPublicCsrf(request: Request, url: URL): Response | null {
+	// Bearer token auth proves intent — no CSRF risk from ambient credentials
+	const authHeader = request.headers.get("Authorization");
+	if (authHeader?.startsWith("Bearer ")) return null;
+
 	// Custom header present — browser blocks cross-origin custom headers
 	const csrfHeader = request.headers.get("X-EmDash-Request");
 	if (csrfHeader === "1") return null;

@@ -159,7 +159,7 @@ async function getRuntime(config: EmDashConfig): Promise<EmDashRuntime> {
  * Baseline security headers applied to all responses.
  * Admin routes get additional headers (strict CSP) from auth middleware.
  */
-function setBaselineSecurityHeaders(response: Response): void {
+function setBaselineSecurityHeaders(response: Response, request?: Request): void {
 	// Prevent MIME type sniffing
 	response.headers.set("X-Content-Type-Options", "nosniff");
 	// Control referrer information
@@ -172,6 +172,14 @@ function setBaselineSecurityHeaders(response: Response): void {
 	// Prevent clickjacking (non-admin routes; admin CSP uses frame-ancestors)
 	if (!response.headers.has("Content-Security-Policy")) {
 		response.headers.set("X-Frame-Options", "SAMEORIGIN");
+	}
+	// CORS for API routes — allow mobile apps and WebViews
+	if (request) {
+		const origin = request.headers.get("Origin");
+		if (origin) {
+			response.headers.set("Access-Control-Allow-Origin", origin);
+			response.headers.set("Access-Control-Allow-Credentials", "true");
+		}
 	}
 }
 
@@ -187,6 +195,21 @@ let runtimeRoutePrefixes: string[] | null = null;
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
+
+	// CORS preflight for API routes
+	if (request.method === "OPTIONS" && url.pathname.startsWith("/_emdash/api/")) {
+		const origin = request.headers.get("Origin");
+		return new Response(null, {
+			status: 204,
+			headers: {
+				"Access-Control-Allow-Origin": origin || "*",
+				"Access-Control-Allow-Methods": "GET, POST, PATCH, PUT, DELETE, OPTIONS",
+				"Access-Control-Allow-Headers":
+					"Content-Type, Authorization, X-EmDash-Request, X-EmDash-App",
+				"Access-Control-Max-Age": "86400",
+			},
+		});
+	}
 
 	// Process /_emdash routes and public routes with an active session
 	// (logged-in editors need the runtime for toolbar/visual editing on public pages)
@@ -243,7 +266,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			}
 
 			const response = await next();
-			setBaselineSecurityHeaders(response);
+			setBaselineSecurityHeaders(response, request);
 			return response;
 		}
 	}
@@ -409,7 +432,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Wrap the request in ALS with the per-request db
 				return runWithContext({ editMode: false, db: sessionDb }, async () => {
 					const response = await next();
-					setBaselineSecurityHeaders(response);
+					setBaselineSecurityHeaders(response, request);
 
 					// Set bookmark cookie for authenticated users only — they need
 					// read-your-writes consistency across requests. Anonymous visitors
@@ -437,7 +460,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 
 		const response = await next();
-		setBaselineSecurityHeaders(response);
+		setBaselineSecurityHeaders(response, request);
 		return response;
 	}; // end doInit
 
