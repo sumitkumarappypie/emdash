@@ -862,6 +862,18 @@ export type PageFragmentHandler = (
 	| null
 	| Promise<PageFragmentContribution | PageFragmentContribution[] | null>;
 
+// ── customer:authenticated ──────────────────────────────
+
+export interface CustomerAuthenticatedEvent {
+	customerId: string;
+	email: string;
+}
+
+export type CustomerAuthenticatedHandler = (
+	event: CustomerAuthenticatedEvent,
+	ctx: PluginContext,
+) => void | Promise<void>;
+
 /**
  * Plugin hooks definition
  */
@@ -899,6 +911,11 @@ export interface PluginHooks {
 	// Public page hooks
 	"page:metadata"?: HookConfig<PageMetadataHandler> | PageMetadataHandler;
 	"page:fragments"?: HookConfig<PageFragmentHandler> | PageFragmentHandler;
+
+	// Customer hooks
+	"customer:authenticated"?:
+		| HookConfig<CustomerAuthenticatedHandler>
+		| CustomerAuthenticatedHandler;
 }
 
 /**
@@ -1189,6 +1206,7 @@ export interface ResolvedPluginHooks {
 	"comment:afterModerate"?: ResolvedHook<CommentAfterModerateHandler>;
 	"page:metadata"?: ResolvedHook<PageMetadataHandler>;
 	"page:fragments"?: ResolvedHook<PageFragmentHandler>;
+	"customer:authenticated"?: ResolvedHook<CustomerAuthenticatedHandler>;
 }
 
 // =============================================================================

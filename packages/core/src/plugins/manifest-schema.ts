@@ -66,6 +66,7 @@ export const HOOK_NAMES = [
 	"comment:afterModerate",
 	"page:metadata",
 	"page:fragments",
+	"customer:authenticated",
 ] as const;
 
 /**

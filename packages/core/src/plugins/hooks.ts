@@ -223,6 +223,7 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "comment:afterModerate");
 			this.registerPluginHook(plugin, "page:metadata");
 			this.registerPluginHook(plugin, "page:fragments");
+			this.registerPluginHook(plugin, "customer:authenticated");
 		}
 
 		// Sort hooks by priority and dependencies

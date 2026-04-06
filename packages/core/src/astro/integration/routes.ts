@@ -712,6 +712,28 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		pattern: "/_emdash/api/auth/logout",
 		entrypoint: resolveRoute("api/auth/logout.ts"),
 	});
+
+	// Customer auth (public — handles own auth via Bearer token)
+	injectRoute({
+		pattern: "/_emdash/api/customers/register",
+		entrypoint: resolveRoute("api/customers/register.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/customers/login",
+		entrypoint: resolveRoute("api/customers/login.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/customers/session",
+		entrypoint: resolveRoute("api/customers/session.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/customers/logout",
+		entrypoint: resolveRoute("api/customers/logout.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/customers/me",
+		entrypoint: resolveRoute("api/customers/me.ts"),
+	});
 }
 
 /**
