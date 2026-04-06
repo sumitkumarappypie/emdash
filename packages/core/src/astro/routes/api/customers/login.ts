@@ -26,7 +26,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 
 		if (emdash.hooks) {
-			await emdash.hooks.run("customer:authenticated", {
+			await emdash.hooks.runCustomerAuthenticated({
 				customerId: result.data.customer.id,
 				email: result.data.customer.email,
 			});

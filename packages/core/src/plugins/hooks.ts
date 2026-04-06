@@ -49,6 +49,10 @@ import type {
 	PageFragmentEvent,
 	PageFragmentHandler,
 	PageFragmentContribution,
+	CustomerAuthenticatedEvent,
+	CustomerAuthenticatedHandler,
+	AppConfigHandler,
+	AppConfigContribution,
 } from "./types.js";
 
 // Hook name type for v2
@@ -72,7 +76,9 @@ type HookNameV2 =
 	| "comment:afterCreate"
 	| "comment:afterModerate"
 	| "page:metadata"
-	| "page:fragments";
+	| "page:fragments"
+	| "customer:authenticated"
+	| "app:config";
 
 /**
  * Map from hook name to handler type — used for type-safe hook retrieval
@@ -98,6 +104,8 @@ interface HookHandlerMap {
 	"comment:afterModerate": CommentAfterModerateHandler;
 	"page:metadata": PageMetadataHandler;
 	"page:fragments": PageFragmentHandler;
+	"customer:authenticated": CustomerAuthenticatedHandler;
+	"app:config": AppConfigHandler;
 }
 
 /**
@@ -1041,6 +1049,65 @@ export class HookPipeline {
 		}
 
 		return results;
+	}
+
+	// =========================================================================
+	// Customer & App Config Hooks
+	// =========================================================================
+
+	/**
+	 * Run customer:authenticated hooks. Fire-and-forget notification hooks.
+	 * Errors are logged but don't propagate.
+	 */
+	async runCustomerAuthenticated(event: CustomerAuthenticatedEvent): Promise<void> {
+		const hooks = this.getTypedHooks("customer:authenticated");
+
+		for (const hook of hooks) {
+			const { handler } = hook;
+			const ctx = this.getContext(hook.pluginId);
+
+			try {
+				await this.executeWithTimeout(() => Promise.resolve(handler(event, ctx)), hook.timeout);
+			} catch (error) {
+				console.error(
+					`[customer:authenticated] Plugin "${hook.pluginId}" error:`,
+					error instanceof Error ? error.message : error,
+				);
+			}
+		}
+	}
+
+	/**
+	 * Run app:config hooks. Each handler returns a partial AppConfigContribution
+	 * that is collected and returned to the caller for merging. Errors are
+	 * logged but don't propagate.
+	 */
+	async runAppConfig(): Promise<Array<Partial<AppConfigContribution>>> {
+		const hooks = this.getTypedHooks("app:config");
+		const contributions: Array<Partial<AppConfigContribution>> = [];
+
+		for (const hook of hooks) {
+			const { handler } = hook;
+			const ctx = this.getContext(hook.pluginId);
+
+			try {
+				const result = await this.executeWithTimeout(
+					() => Promise.resolve(handler(undefined as void, ctx)),
+					hook.timeout,
+				);
+
+				if (result != null) {
+					contributions.push(result);
+				}
+			} catch (error) {
+				console.error(
+					`[app:config] Plugin "${hook.pluginId}" error:`,
+					error instanceof Error ? error.message : error,
+				);
+			}
+		}
+
+		return contributions;
 	}
 
 	// =========================================================================

@@ -145,6 +145,14 @@ export {
 	type TermGetResponse,
 } from "./taxonomies.js";
 
+// App config handlers
+export {
+	buildAppConfig,
+	type AppConfig,
+	type AppConfigPlugin,
+	type BuildAppConfigInput,
+} from "./app-config.js";
+
 // Marketplace handlers
 export {
 	handleMarketplaceInstall,

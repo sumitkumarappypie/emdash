@@ -735,6 +735,18 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/customers/me.ts"),
 	});
 
+	// Push device registration (public — handles own auth via Bearer token)
+	injectRoute({
+		pattern: "/_emdash/api/push/register",
+		entrypoint: resolveRoute("api/push/register.ts"),
+	});
+
+	// Mobile app config (public — no admin auth, unauthenticated GET)
+	injectRoute({
+		pattern: "/_emdash/api/app/config",
+		entrypoint: resolveRoute("api/app/config.ts"),
+	});
+
 	// Public content API (no auth required — published content only)
 	injectRoute({
 		pattern: "/_emdash/api/public/content/[collection]",
