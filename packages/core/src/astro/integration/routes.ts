@@ -734,6 +734,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		pattern: "/_emdash/api/customers/me",
 		entrypoint: resolveRoute("api/customers/me.ts"),
 	});
+
+	// Public content API (no auth required — published content only)
+	injectRoute({
+		pattern: "/_emdash/api/public/content/[collection]",
+		entrypoint: resolveRoute("api/public/content/[collection].ts"),
+	});
 }
 
 /**

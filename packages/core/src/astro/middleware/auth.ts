@@ -102,6 +102,8 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/media/file/",
 	"/_emdash/.well-known/",
 	"/_emdash/api/customers/",
+	"/_emdash/api/public/",
+	"/_emdash/api/app/",
 ];
 
 const PUBLIC_API_EXACT = new Set([
