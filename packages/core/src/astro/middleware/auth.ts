@@ -103,6 +103,7 @@ const PUBLIC_API_PREFIXES = [
 	"/_emdash/.well-known/",
 	"/_emdash/api/customers/",
 	"/_emdash/api/public/",
+	"/_emdash/api/push/",
 	"/_emdash/api/app/",
 ];
 

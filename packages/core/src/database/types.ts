@@ -427,6 +427,7 @@ export interface Database {
 	_emdash_rate_limits: RateLimitTable;
 	_emdash_customers: CustomersTable;
 	_emdash_customer_sessions: CustomerSessionsTable;
+	_emdash_push_devices: PushDevicesTable;
 }
 
 export type MediaRow = {
@@ -519,4 +520,13 @@ export interface CustomerSessionsTable {
 	token_hash: string;
 	expires_at: string;
 	created_at: string;
+}
+
+export interface PushDevicesTable {
+	id: string;
+	customer_id: string | null;
+	push_token: string;
+	platform: string;
+	created_at: string;
+	last_seen_at: string;
 }

@@ -34,6 +34,7 @@ import * as m030 from "./030_widen_scheduled_index.js";
 import * as m031 from "./031_bylines.js";
 import * as m032 from "./032_rate_limits.js";
 import * as m033 from "./033_customers.js";
+import * as m034 from "./034_push_devices.js";
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -74,6 +75,7 @@ class StaticMigrationProvider implements MigrationProvider {
 			"031_bylines": m031,
 			"032_rate_limits": m032,
 			"033_customers": m033,
+			"034_push_devices": m034,
 		};
 	}
 }
