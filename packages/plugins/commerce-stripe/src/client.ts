@@ -1,5 +1,7 @@
 const STRIPE_API = "https://api.stripe.com/v1";
 
+type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
+
 interface StripeRequestOpts {
 	method: "GET" | "POST";
 	path: string;
@@ -7,7 +9,7 @@ interface StripeRequestOpts {
 	secretKey: string;
 }
 
-async function stripeRequest<T>(fetchFn: typeof fetch, opts: StripeRequestOpts): Promise<T> {
+async function stripeRequest<T>(fetchFn: FetchFn, opts: StripeRequestOpts): Promise<T> {
 	const headers: Record<string, string> = {
 		Authorization: `Bearer ${opts.secretKey}`,
 		"Content-Type": "application/x-www-form-urlencoded",
@@ -28,7 +30,7 @@ async function stripeRequest<T>(fetchFn: typeof fetch, opts: StripeRequestOpts):
 }
 
 export async function createPaymentIntent(
-	fetchFn: typeof fetch,
+	fetchFn: FetchFn,
 	secretKey: string,
 	opts: { amount: number; currency: string; metadata?: Record<string, string> },
 ): Promise<{ id: string; client_secret: string; status: string }> {
@@ -46,7 +48,7 @@ export async function createPaymentIntent(
 }
 
 export async function createRefund(
-	fetchFn: typeof fetch,
+	fetchFn: FetchFn,
 	secretKey: string,
 	opts: { paymentIntentId: string; amount?: number },
 ): Promise<{ id: string; status: string }> {

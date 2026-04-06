@@ -28,7 +28,7 @@ export default definePlugin({
 					return { success: false, error: "Stripe secret key not configured" };
 				}
 
-				const fetchFn = ctx.http?.fetch ?? fetch;
+				const fetchFn = ctx.http?.fetch ?? ((url: string, init?: RequestInit) => fetch(url, init));
 				const result = await createPaymentIntent(fetchFn, secretKey, {
 					amount: routeCtx.input.amount as number,
 					currency: routeCtx.input.currency as string,
@@ -46,7 +46,7 @@ export default definePlugin({
 					return { success: false, error: "Stripe secret key not configured" };
 				}
 
-				const fetchFn = ctx.http?.fetch ?? fetch;
+				const fetchFn = ctx.http?.fetch ?? ((url: string, init?: RequestInit) => fetch(url, init));
 				const result = await createRefund(fetchFn, secretKey, {
 					paymentIntentId: routeCtx.input.paymentIntentId as string,
 					amount: routeCtx.input.amount as number | undefined,
