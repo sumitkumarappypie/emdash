@@ -67,6 +67,7 @@ export const HOOK_NAMES = [
 	"page:metadata",
 	"page:fragments",
 	"customer:authenticated",
+	"app:config",
 ] as const;
 
 /**

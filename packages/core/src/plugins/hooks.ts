@@ -224,6 +224,7 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "page:metadata");
 			this.registerPluginHook(plugin, "page:fragments");
 			this.registerPluginHook(plugin, "customer:authenticated");
+			this.registerPluginHook(plugin, "app:config");
 		}
 
 		// Sort hooks by priority and dependencies

@@ -869,6 +869,13 @@ export interface CustomerAuthenticatedEvent {
 	email: string;
 }
 
+// ── app:config ──────────────────────────────────────────
+
+export type AppConfigHandler = (
+	event: void,
+	ctx: PluginContext,
+) => Partial<AppConfigContribution> | null | Promise<Partial<AppConfigContribution> | null>;
+
 export type CustomerAuthenticatedHandler = (
 	event: CustomerAuthenticatedEvent,
 	ctx: PluginContext,
@@ -916,6 +923,9 @@ export interface PluginHooks {
 	"customer:authenticated"?:
 		| HookConfig<CustomerAuthenticatedHandler>
 		| CustomerAuthenticatedHandler;
+
+	// Mobile app config hook
+	"app:config"?: HookConfig<AppConfigHandler> | AppConfigHandler;
 }
 
 /**
@@ -1141,6 +1151,47 @@ export interface PluginAdminConfig {
 }
 
 /**
+ * Mobile app configuration for plugins
+ */
+export interface PluginMobileTab {
+	key: string;
+	label: string;
+	icon: string;
+	screen: string;
+	badge?: string;
+}
+
+export interface PluginMobileConfig {
+	/** Whether this plugin ships native React Native screens */
+	native?: boolean;
+	/** Entry URL for WebView rendering (third-party plugins) */
+	entryUrl?: string;
+	/** Display label in the mobile app */
+	label?: string;
+	/** Icon name from the shared icon set */
+	icon?: string;
+	/** Tab contributions to the mobile app navigation */
+	tabs?: PluginMobileTab[];
+}
+
+/**
+ * Contribution type for the app:config hook
+ */
+export interface AppConfigContribution {
+	theme?: {
+		primary?: string;
+		secondary?: string;
+		background?: string;
+		surface?: string;
+		text?: string;
+		textMuted?: string;
+		error?: string;
+		success?: string;
+	};
+	features?: Record<string, boolean>;
+}
+
+/**
  * Plugin definition - input to definePlugin()
  */
 export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginStorageConfig> {
@@ -1166,6 +1217,9 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 
 	/** Admin UI configuration */
 	admin?: PluginAdminConfig;
+
+	/** Mobile app configuration */
+	mobile?: PluginMobileConfig;
 }
 
 /**
@@ -1180,6 +1234,7 @@ export interface ResolvedPlugin<TStorage extends PluginStorageConfig = PluginSto
 	hooks: ResolvedPluginHooks;
 	routes: Record<string, PluginRoute>;
 	admin: PluginAdminConfig;
+	mobile?: PluginMobileConfig;
 }
 
 /**
@@ -1207,6 +1262,7 @@ export interface ResolvedPluginHooks {
 	"page:metadata"?: ResolvedHook<PageMetadataHandler>;
 	"page:fragments"?: ResolvedHook<PageFragmentHandler>;
 	"customer:authenticated"?: ResolvedHook<CustomerAuthenticatedHandler>;
+	"app:config"?: ResolvedHook<AppConfigHandler>;
 }
 
 // =============================================================================
@@ -1319,4 +1375,5 @@ export interface PluginManifest {
 	/** Route declarations — either plain name strings or structured objects */
 	routes: Array<ManifestRouteEntry | string>;
 	admin: PluginAdminConfig;
+	mobile?: PluginMobileConfig;
 }

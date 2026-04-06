@@ -187,6 +187,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		hooks: resolvedHooks,
 		routes,
 		admin,
+		mobile: definition.mobile,
 	};
 }
 
