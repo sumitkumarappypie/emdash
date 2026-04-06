@@ -64,6 +64,27 @@ interface RouteCtx {
 }
 
 export default definePlugin({
+	mobile: {
+		native: true,
+		label: "Shop",
+		icon: "store",
+		tabs: [
+			{
+				key: "shop",
+				label: "Shop",
+				icon: "store",
+				screen: "commerce:product-list",
+			},
+			{
+				key: "cart",
+				label: "Cart",
+				icon: "cart",
+				screen: "commerce:cart",
+				badge: "cartCount",
+			},
+		],
+	},
+
 	hooks: {
 		"plugin:install": async (_event: unknown, ctx: PluginContext) => {
 			ctx.log.info("Commerce plugin installed");
