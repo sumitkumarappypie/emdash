@@ -33,6 +33,7 @@ export async function dispatchCommerceEvent(
 				await ctx.email.send({
 					to: event.order.customerEmail,
 					subject: `Order Confirmed: ${event.order.orderNumber}`,
+					text: `Order ${event.order.orderNumber} confirmed. Total: ${formatCurrency(event.order.total, event.order.currency)}`,
 					html: buildOrderConfirmationEmail(event.order),
 				});
 				break;
@@ -41,6 +42,7 @@ export async function dispatchCommerceEvent(
 				await ctx.email.send({
 					to: event.order.customerEmail,
 					subject: `Payment Received: ${event.order.orderNumber}`,
+					text: `Payment received for order ${event.order.orderNumber}. Amount: ${formatCurrency(event.order.total, event.order.currency)}`,
 					html: buildPaymentReceivedEmail(event.order),
 				});
 				break;
@@ -49,6 +51,7 @@ export async function dispatchCommerceEvent(
 				await ctx.email.send({
 					to: event.order.customerEmail,
 					subject: `Refund Processed: ${event.order.orderNumber}`,
+					text: `Refund of ${formatCurrency(event.amount, event.order.currency)} processed for order ${event.order.orderNumber}.`,
 					html: buildRefundEmail(event.order, event.amount),
 				});
 				break;
@@ -59,6 +62,7 @@ export async function dispatchCommerceEvent(
 					await ctx.email.send({
 						to: adminEmail,
 						subject: `Low Stock Alert: ${event.productId}`,
+						text: `Product ${event.productId} has only ${event.remaining} units remaining.`,
 						html: `<p>Product ${event.productId} has only ${event.remaining} units remaining.</p>`,
 					});
 				}
