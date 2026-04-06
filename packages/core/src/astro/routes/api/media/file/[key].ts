@@ -7,6 +7,7 @@
 import type { APIRoute } from "astro";
 
 import { apiError, handleError } from "#api/error.js";
+import { parseTransformParams } from "#api/handlers/image-transform.js";
 
 export const prerender = false;
 
@@ -28,7 +29,7 @@ const SAFE_INLINE_TYPES = new Set([
 	"audio/ogg",
 ]);
 
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async ({ params, locals, url }) => {
 	const { key } = params;
 	const { emdash } = locals;
 
@@ -40,18 +41,24 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		return apiError("NOT_CONFIGURED", "Storage not configured", 500);
 	}
 
+	const transform = parseTransformParams(url);
+
 	try {
 		const result = await emdash.storage.download(key);
 
 		const headers: Record<string, string> = {
 			"Content-Type": result.contentType,
-			"Cache-Control": "public, max-age=31536000, immutable",
+			"Cache-Control": transform ? "public, max-age=86400" : "public, max-age=31536000, immutable",
 			"X-Content-Type-Options": "nosniff",
 			// Sandbox CSP on all user-uploaded content — prevents script execution
 			// even for SVGs navigated to directly or content types that support scripting.
 			"Content-Security-Policy":
 				"sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
 		};
+
+		if (transform) {
+			headers["Vary"] = "Accept";
+		}
 
 		if (result.size) {
 			headers["Content-Length"] = String(result.size);
