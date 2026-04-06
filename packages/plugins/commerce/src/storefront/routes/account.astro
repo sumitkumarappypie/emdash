@@ -126,6 +126,10 @@ if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect
 		}
 
 		for (const order of orders) {
+			const link = document.createElement("a");
+			link.href = `/shop/account/order/${order.id}`;
+			link.className = "order-card-link";
+
 			const card = document.createElement("div");
 			card.className = "order-card";
 
@@ -158,12 +162,13 @@ if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect
 			totalLabel.textContent = "Total: ";
 			total.appendChild(totalLabel);
 			const totalText = document.createTextNode(
-				order.total != null ? `$${Number(order.total).toFixed(2)}` : "—",
+				order.total != null ? `$${Number(order.total).toFixed(2)}` : "\u2014",
 			);
 			total.appendChild(totalText);
 			card.appendChild(total);
 
-			orderListEl.appendChild(card);
+			link.appendChild(card);
+			orderListEl.appendChild(link);
 		}
 	}
 
@@ -236,12 +241,24 @@ if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect
 		padding: 2rem 0;
 	}
 
+	.order-card-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+		margin-bottom: 0.75rem;
+	}
+
 	.order-card {
 		border: 1px solid var(--color-border, #e5e5e5);
 		border-radius: 10px;
 		padding: 1rem 1.25rem;
-		margin-bottom: 0.75rem;
 		background: var(--color-bg, #fff);
+		transition: border-color 0.15s, box-shadow 0.15s;
+	}
+
+	.order-card-link:hover .order-card {
+		border-color: var(--color-accent, #0066cc);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 	}
 
 	.order-card-header {

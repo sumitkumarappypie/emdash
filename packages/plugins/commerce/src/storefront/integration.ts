@@ -87,6 +87,10 @@ export function commerceStorefront(options: CommerceStorefrontOptions = {}): Ast
 					entrypoint: resolveRoute("register.astro"),
 				});
 				injectRoute({ pattern: `${basePath}/account`, entrypoint: resolveRoute("account.astro") });
+				injectRoute({
+					pattern: `${basePath}/account/order/[id]`,
+					entrypoint: resolveRoute("order.astro"),
+				});
 			},
 		},
 	};

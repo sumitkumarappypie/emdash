@@ -1,0 +1,550 @@
+---
+// @ts-ignore virtual module
+import { Layout } from "virtual:commerce-storefront/config";
+
+export const prerender = false;
+
+const emdash = (Astro.locals as any).emdash;
+if (!emdash?.handlePluginApiRoute) return Astro.redirect("/404");
+
+const statusResult = await emdash.handlePluginApiRoute(
+	"commerce", "POST", "/storefront/status",
+	new Request("https://internal/status", { method: "POST", body: "{}" }),
+);
+if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect("/404");
+
+const orderId = Astro.params.id;
+---
+
+<Layout title="Order Details">
+	<main class="order-detail-page">
+		<div id="order-loading" class="shop-loading">Loading order...</div>
+		<div id="order-login-prompt" style="display:none" class="auth-page">
+			<div class="auth-card">
+				<h1>Sign In Required</h1>
+				<p class="auth-prompt-text">Please log in to view your order.</p>
+				<a href="/shop/login?returnUrl=/shop/account" class="auth-btn auth-btn-link">Log In</a>
+			</div>
+		</div>
+		<div id="order-error" style="display:none" class="order-error-msg"></div>
+		<div id="order-content" style="display:none" data-order-id={orderId}>
+			<a href="/shop/account" class="back-link">&larr; Back to Account</a>
+			<div id="order-header" class="order-detail-header"></div>
+			<div id="order-items" class="order-detail-items"></div>
+			<div id="order-summary" class="order-detail-summary"></div>
+			<div id="order-addresses" class="order-detail-addresses"></div>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	const API_BASE = "/_emdash/api/plugins/commerce";
+	const loadingEl = document.getElementById("order-loading")!;
+	const loginPromptEl = document.getElementById("order-login-prompt")!;
+	const errorEl = document.getElementById("order-error")!;
+	const contentEl = document.getElementById("order-content")!;
+	const orderId = contentEl.dataset.orderId;
+
+	async function loadOrder() {
+		const customerToken = localStorage.getItem("commerce_customer_token");
+		if (!customerToken) {
+			showLoginPrompt();
+			return;
+		}
+
+		const res = await fetch(`${API_BASE}/account/order`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ customerToken, orderId }),
+		});
+		const body = await res.json();
+
+		if (!res.ok || !body?.data) {
+			const msg = body?.error?.message ?? body?.data?.error ?? "Could not load order";
+			if (msg === "Not authenticated") {
+				localStorage.removeItem("commerce_customer_token");
+				showLoginPrompt();
+				return;
+			}
+			showError(msg);
+			return;
+		}
+
+		const { order, items } = body.data;
+		renderHeader(order);
+		renderItems(items);
+		renderSummary(order);
+		renderAddresses(order);
+
+		loadingEl.style.display = "none";
+		contentEl.style.display = "block";
+	}
+
+	function showLoginPrompt() {
+		loadingEl.style.display = "none";
+		loginPromptEl.style.display = "flex";
+	}
+
+	function showError(msg: string) {
+		loadingEl.style.display = "none";
+		errorEl.textContent = msg;
+		errorEl.style.display = "block";
+	}
+
+	function fmt(amount: number | null | undefined, currency?: string): string {
+		if (amount == null) return "\u2014";
+		const c = (currency ?? "USD").toUpperCase();
+		try {
+			return new Intl.NumberFormat(undefined, { style: "currency", currency: c }).format(amount);
+		} catch {
+			return `${c} ${amount.toFixed(2)}`;
+		}
+	}
+
+	function fmtDate(iso: string | null | undefined): string {
+		if (!iso) return "\u2014";
+		return new Date(iso).toLocaleDateString(undefined, {
+			year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
+		});
+	}
+
+	function el(tag: string, cls?: string, text?: string): HTMLElement {
+		const e = document.createElement(tag);
+		if (cls) e.className = cls;
+		if (text) e.textContent = text;
+		return e;
+	}
+
+	function renderHeader(order: Record<string, any>) {
+		const headerEl = document.getElementById("order-header")!;
+		headerEl.replaceChildren();
+
+		const title = el("h1", "order-detail-title", `Order ${order.orderNumber ?? order.id}`);
+		headerEl.appendChild(title);
+
+		const meta = el("div", "order-detail-meta");
+
+		const statusBadge = el("span", "order-status-badge", String(order.status ?? ""));
+		meta.appendChild(statusBadge);
+
+		if (order.paymentStatus) {
+			const payBadge = el("span", "order-payment-badge", `Payment: ${order.paymentStatus}`);
+			meta.appendChild(payBadge);
+		}
+
+		if (order.fulfillmentStatus) {
+			const label = String(order.fulfillmentStatus).split("_").join(" ");
+			const shipBadge = el("span", "order-fulfillment-badge", `Fulfillment: ${label}`);
+			meta.appendChild(shipBadge);
+		}
+
+		const dateEl = el("span", "order-detail-date", `Placed ${fmtDate(order.createdAt)}`);
+		meta.appendChild(dateEl);
+		headerEl.appendChild(meta);
+
+		if (order.trackingNumber || order.trackingUrl) {
+			const tracking = el("div", "order-tracking");
+			if (order.trackingUrl) {
+				const link = document.createElement("a");
+				link.href = order.trackingUrl;
+				link.target = "_blank";
+				link.rel = "noopener";
+				link.textContent = `Track shipment${order.trackingNumber ? ` (${order.trackingNumber})` : ""}`;
+				link.className = "tracking-link";
+				tracking.appendChild(link);
+			} else {
+				tracking.appendChild(el("span", undefined, `Tracking: ${order.trackingNumber}`));
+			}
+			headerEl.appendChild(tracking);
+		}
+	}
+
+	function renderItems(items: Array<Record<string, any>>) {
+		const container = document.getElementById("order-items")!;
+		container.replaceChildren();
+
+		const heading = el("h2", undefined, "Items");
+		container.appendChild(heading);
+
+		const table = document.createElement("table");
+		table.className = "items-table";
+
+		const thead = document.createElement("thead");
+		const headRow = document.createElement("tr");
+		for (const label of ["Product", "SKU", "Qty", "Unit Price", "Total"]) {
+			const th = document.createElement("th");
+			th.textContent = label;
+			headRow.appendChild(th);
+		}
+		thead.appendChild(headRow);
+		table.appendChild(thead);
+
+		const tbody = document.createElement("tbody");
+		for (const item of items) {
+			const row = document.createElement("tr");
+
+			const nameCell = document.createElement("td");
+			nameCell.className = "item-name-cell";
+			const nameText = el("span", "item-product-name", String(item.productName ?? ""));
+			nameCell.appendChild(nameText);
+			if (item.variantName) {
+				const varText = el("span", "item-variant-name", String(item.variantName));
+				nameCell.appendChild(varText);
+			}
+			row.appendChild(nameCell);
+
+			const skuCell = document.createElement("td");
+			skuCell.textContent = item.sku || "\u2014";
+			skuCell.className = "item-sku-cell";
+			row.appendChild(skuCell);
+
+			const qtyCell = document.createElement("td");
+			qtyCell.textContent = String(item.quantity ?? 0);
+			qtyCell.className = "item-qty-cell";
+			row.appendChild(qtyCell);
+
+			const priceCell = document.createElement("td");
+			priceCell.textContent = fmt(item.unitPrice);
+			priceCell.className = "item-price-cell";
+			row.appendChild(priceCell);
+
+			const totalCell = document.createElement("td");
+			totalCell.textContent = fmt(item.totalPrice);
+			totalCell.className = "item-total-cell";
+			row.appendChild(totalCell);
+
+			tbody.appendChild(row);
+		}
+		table.appendChild(tbody);
+		container.appendChild(table);
+	}
+
+	function renderSummary(order: Record<string, any>) {
+		const container = document.getElementById("order-summary")!;
+		container.replaceChildren();
+
+		const heading = el("h2", undefined, "Summary");
+		container.appendChild(heading);
+
+		const rows: [string, string][] = [
+			["Subtotal", fmt(order.subtotal, order.currency)],
+		];
+		if (order.discountTotal > 0) rows.push(["Discount", `-${fmt(order.discountTotal, order.currency)}`]);
+		if (order.shippingTotal > 0) rows.push(["Shipping", fmt(order.shippingTotal, order.currency)]);
+		if (order.taxTotal > 0) rows.push(["Tax", fmt(order.taxTotal, order.currency)]);
+		rows.push(["Total", fmt(order.total, order.currency)]);
+
+		const dl = document.createElement("dl");
+		dl.className = "summary-list";
+		for (const [label, value] of rows) {
+			const isTotal = label === "Total";
+			const dt = el("dt", isTotal ? "summary-total-label" : undefined, label);
+			const dd = el("dd", isTotal ? "summary-total-value" : undefined, value);
+			dl.appendChild(dt);
+			dl.appendChild(dd);
+		}
+		container.appendChild(dl);
+	}
+
+	function renderAddresses(order: Record<string, any>) {
+		const container = document.getElementById("order-addresses")!;
+		container.replaceChildren();
+
+		const hasShipping = order.shippingAddress;
+		const hasBilling = order.billingAddress;
+		if (!hasShipping && !hasBilling) return;
+
+		const heading = el("h2", undefined, "Addresses");
+		container.appendChild(heading);
+
+		const grid = el("div", "address-grid");
+
+		if (hasShipping) {
+			grid.appendChild(renderAddress("Shipping", order.shippingAddress));
+		}
+		if (hasBilling) {
+			grid.appendChild(renderAddress("Billing", order.billingAddress));
+		}
+
+		container.appendChild(grid);
+	}
+
+	function renderAddress(title: string, addr: Record<string, any>): HTMLElement {
+		const card = el("div", "address-card");
+		card.appendChild(el("h3", undefined, title));
+		const lines = [
+			addr.name,
+			addr.line1,
+			addr.line2,
+			[addr.city, addr.state, addr.postalCode].filter(Boolean).join(", "),
+			addr.country,
+		].filter(Boolean);
+		for (const line of lines) {
+			card.appendChild(el("p", "address-line", String(line)));
+		}
+		return card;
+	}
+
+	loadOrder();
+</script>
+
+<style is:global>
+	.order-detail-page {
+		max-width: var(--wide-width, 1200px);
+		margin: 0 auto;
+		padding: 2rem var(--spacing-6, 1.5rem) 4rem;
+	}
+
+	.shop-loading {
+		text-align: center;
+		padding: 4rem 0;
+		color: var(--color-muted, #888);
+	}
+
+	.order-error-msg {
+		text-align: center;
+		padding: 3rem 0;
+		color: var(--color-error, #c00);
+		font-size: 1rem;
+	}
+
+	.back-link {
+		display: inline-block;
+		margin-bottom: 1.5rem;
+		font-size: 0.875rem;
+		color: var(--color-accent, #0066cc);
+		text-decoration: none;
+	}
+
+	.back-link:hover { text-decoration: underline; }
+
+	.order-detail-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin: 0 0 0.75rem;
+		letter-spacing: -0.02em;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.order-detail-meta {
+		display: flex;
+		gap: 0.75rem;
+		align-items: center;
+		flex-wrap: wrap;
+		margin-bottom: 1.5rem;
+	}
+
+	.order-status-badge,
+	.order-payment-badge,
+	.order-fulfillment-badge {
+		font-size: 0.8125rem;
+		font-weight: 500;
+		padding: 0.2rem 0.6rem;
+		border-radius: 99px;
+		background: var(--color-surface, #f0f0f0);
+		color: var(--color-muted, #555);
+		text-transform: capitalize;
+	}
+
+	.order-detail-date {
+		font-size: 0.8125rem;
+		color: var(--color-muted, #888);
+	}
+
+	.order-tracking {
+		margin-bottom: 1.5rem;
+	}
+
+	.tracking-link {
+		font-size: 0.875rem;
+		color: var(--color-accent, #0066cc);
+		text-decoration: none;
+	}
+
+	.tracking-link:hover { text-decoration: underline; }
+
+	/* Items table */
+	.order-detail-items h2,
+	.order-detail-summary h2,
+	.order-detail-addresses h2 {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin: 2rem 0 0.75rem;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.items-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.9375rem;
+	}
+
+	.items-table th {
+		text-align: left;
+		font-weight: 600;
+		font-size: 0.8125rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--color-muted, #888);
+		padding: 0.5rem 0.75rem;
+		border-bottom: 2px solid var(--color-border, #e5e5e5);
+	}
+
+	.items-table td {
+		padding: 0.75rem;
+		border-bottom: 1px solid var(--color-border, #e5e5e5);
+		vertical-align: top;
+	}
+
+	.item-name-cell {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	.item-product-name {
+		font-weight: 500;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	.item-variant-name {
+		font-size: 0.8125rem;
+		color: var(--color-muted, #888);
+	}
+
+	.item-sku-cell {
+		font-size: 0.8125rem;
+		color: var(--color-muted, #888);
+	}
+
+	.item-qty-cell,
+	.item-price-cell,
+	.item-total-cell {
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	.items-table th:nth-child(3),
+	.items-table th:nth-child(4),
+	.items-table th:nth-child(5) {
+		text-align: right;
+	}
+
+	/* Summary */
+	.summary-list {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.375rem 1.5rem;
+		max-width: 320px;
+		margin-left: auto;
+		font-size: 0.9375rem;
+	}
+
+	.summary-list dt {
+		color: var(--color-muted, #666);
+	}
+
+	.summary-list dd {
+		text-align: right;
+		margin: 0;
+	}
+
+	.summary-total-label {
+		font-weight: 700;
+		color: var(--color-text, #1a1a1a);
+		padding-top: 0.5rem;
+		border-top: 2px solid var(--color-border, #e5e5e5);
+	}
+
+	.summary-total-value {
+		font-weight: 700;
+		color: var(--color-text, #1a1a1a);
+		padding-top: 0.5rem;
+		border-top: 2px solid var(--color-border, #e5e5e5);
+		text-align: right;
+		margin: 0;
+	}
+
+	/* Addresses */
+	.address-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 1rem;
+	}
+
+	.address-card {
+		border: 1px solid var(--color-border, #e5e5e5);
+		border-radius: 10px;
+		padding: 1rem 1.25rem;
+		background: var(--color-bg, #fff);
+	}
+
+	.address-card h3 {
+		font-size: 0.875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--color-muted, #888);
+		margin: 0 0 0.5rem;
+	}
+
+	.address-line {
+		margin: 0.125rem 0;
+		font-size: 0.9375rem;
+		color: var(--color-text, #1a1a1a);
+	}
+
+	/* Auth styles (shared with account) */
+	.auth-page {
+		display: flex;
+		justify-content: center;
+		align-items: flex-start;
+		padding: 3rem 0;
+	}
+
+	.auth-card {
+		width: 100%;
+		max-width: 400px;
+		background: var(--color-bg, #fff);
+		border: 1px solid var(--color-border, #e5e5e5);
+		border-radius: 16px;
+		padding: 2.5rem 2rem;
+	}
+
+	.auth-card h1 {
+		text-align: center;
+		font-size: 1.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.auth-prompt-text {
+		text-align: center;
+		color: var(--color-muted, #888);
+		margin-bottom: 1.5rem;
+		font-size: 0.9375rem;
+	}
+
+	.auth-btn-link {
+		display: block;
+		text-align: center;
+		text-decoration: none;
+		line-height: 1;
+		padding: 0.875rem;
+		font-size: 1rem;
+		font-weight: 600;
+		background: var(--color-accent, #0066cc);
+		color: white;
+		border-radius: 8px;
+		transition: background 0.2s;
+	}
+
+	.auth-btn-link:hover { background: var(--color-accent-hover, #0052a3); }
+
+	/* Responsive */
+	@media (max-width: 640px) {
+		.items-table { font-size: 0.8125rem; }
+		.items-table th,
+		.items-table td { padding: 0.5rem; }
+		.summary-list { max-width: 100%; }
+	}
+</style>

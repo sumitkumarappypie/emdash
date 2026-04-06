@@ -420,6 +420,23 @@ export default definePlugin({
 			},
 		},
 
+		"account/order": {
+			public: true,
+			handler: async (routeCtx: RouteCtx, ctx: PluginContext) => {
+				const session = await validateSession(ctx.kv, routeCtx.input.customerToken as string);
+				if (!session) throw new CommerceError("UNAUTHORIZED", "Not authenticated");
+				const orderId = routeCtx.input.orderId as string;
+				if (!orderId) throw new CommerceError("MISSING_ORDER_ID", "Order ID is required");
+				const order = await getOrder(ctx.storage.orders!, orderId);
+				if (!order) throw new CommerceError("ORDER_NOT_FOUND", "Order not found");
+				if (order.customerId !== session.customerId) {
+					throw new CommerceError("UNAUTHORIZED", "Not authorized to view this order");
+				}
+				const items = await getOrderItems(ctx.storage.orderItems!, orderId);
+				return { order, items };
+			},
+		},
+
 		// ── Admin routes ─────────────────────────────────────────────────
 
 		"admin/products/list": {
