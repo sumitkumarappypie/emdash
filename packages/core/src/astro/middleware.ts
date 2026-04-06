@@ -41,6 +41,7 @@ import {
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
+import { getAppBridgeScript, isMobileAppRequest } from "../mobile/bridge-script.js";
 import type { SandboxRunner } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { runWithContext } from "../request-context.js";
@@ -460,6 +461,24 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 
 		const response = await next();
+
+		// Inject App Bridge script for mobile app WebView requests
+		if (
+			isMobileAppRequest(request) &&
+			response.headers.get("Content-Type")?.includes("text/html")
+		) {
+			const html = await response.text();
+			const bridgeScript = `<script>${getAppBridgeScript()}</script>`;
+			const injectedHtml = html.replace("</head>", `${bridgeScript}</head>`);
+			const injectedResponse = new Response(injectedHtml, {
+				status: response.status,
+				statusText: response.statusText,
+				headers: response.headers,
+			});
+			setBaselineSecurityHeaders(injectedResponse, request);
+			return injectedResponse;
+		}
+
 		setBaselineSecurityHeaders(response, request);
 		return response;
 	}; // end doInit
