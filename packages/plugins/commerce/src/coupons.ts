@@ -1,19 +1,6 @@
+import type { StorageCollection } from "./storage-types.js";
 import type { Coupon, Cart, CartItem } from "./types.js";
 import { createCouponSchema, updateCouponSchema } from "./validation.js";
-
-type StorageCollection = {
-	get(id: string): Promise<Coupon | null>;
-	put(id: string, data: Coupon): Promise<void>;
-	delete(id: string): Promise<boolean>;
-	exists(id: string): Promise<boolean>;
-	query(opts?: {
-		where?: Record<string, unknown>;
-		orderBy?: Record<string, string>;
-		limit?: number;
-		cursor?: string;
-	}): Promise<{ items: Array<{ id: string; data: Coupon }>; hasMore: boolean; cursor?: string }>;
-	count(where?: Record<string, unknown>): Promise<number>;
-};
 
 function generateId(): string {
 	return crypto.randomUUID();
@@ -78,7 +65,6 @@ export async function listCoupons(
 
 	const result = await storage.query({
 		where: Object.keys(where).length > 0 ? where : undefined,
-		orderBy: { createdAt: "desc" },
 		limit: Math.min(opts.limit ?? 50, 100),
 		cursor: opts.cursor,
 	});

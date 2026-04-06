@@ -1,15 +1,5 @@
+import type { StorageCollection } from "./storage-types.js";
 import type { Cart, CartItem } from "./types.js";
-
-type StorageCollection<T = unknown> = {
-	get(id: string): Promise<T | null>;
-	put(id: string, data: T): Promise<void>;
-	delete(id: string): Promise<boolean>;
-	query(opts?: {
-		where?: Record<string, unknown>;
-		orderBy?: Record<string, string>;
-		limit?: number;
-	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
-};
 
 function generateId(): string {
 	return crypto.randomUUID();
@@ -26,7 +16,7 @@ export class CommerceError extends Error {
 }
 
 export async function createCart(
-	cartStorage: StorageCollection<Cart>,
+	cartStorage: StorageCollection,
 	opts: { sessionId?: string; customerId?: string },
 ): Promise<Cart> {
 	const now = new Date();
@@ -56,10 +46,7 @@ export async function createCart(
 	return cart;
 }
 
-export async function getCart(
-	cartStorage: StorageCollection<Cart>,
-	id: string,
-): Promise<Cart | null> {
+export async function getCart(cartStorage: StorageCollection, id: string): Promise<Cart | null> {
 	const cart = await cartStorage.get(id);
 	if (!cart) return null;
 	if (new Date(cart.expiresAt) < new Date()) {
@@ -69,10 +56,10 @@ export async function getCart(
 }
 
 export async function addCartItem(
-	cartStorage: StorageCollection<Cart>,
-	cartItemStorage: StorageCollection<CartItem>,
-	productStorage: StorageCollection<Record<string, unknown>>,
-	variantStorage: StorageCollection<Record<string, unknown>>,
+	cartStorage: StorageCollection,
+	cartItemStorage: StorageCollection,
+	productStorage: StorageCollection,
+	variantStorage: StorageCollection,
 	cartId: string,
 	input: {
 		productId: string;
@@ -147,7 +134,7 @@ export async function addCartItem(
 }
 
 export async function updateCartItemQuantity(
-	cartItemStorage: StorageCollection<CartItem>,
+	cartItemStorage: StorageCollection,
 	itemId: string,
 	quantity: number,
 ): Promise<CartItem | null> {
@@ -165,14 +152,14 @@ export async function updateCartItemQuantity(
 }
 
 export async function removeCartItem(
-	cartItemStorage: StorageCollection<CartItem>,
+	cartItemStorage: StorageCollection,
 	itemId: string,
 ): Promise<boolean> {
 	return cartItemStorage.delete(itemId);
 }
 
 export async function getCartItems(
-	cartItemStorage: StorageCollection<CartItem>,
+	cartItemStorage: StorageCollection,
 	cartId: string,
 ): Promise<CartItem[]> {
 	const result = await cartItemStorage.query({ where: { cartId }, limit: 1000 });
@@ -180,8 +167,8 @@ export async function getCartItems(
 }
 
 export async function mergeCarts(
-	cartStorage: StorageCollection<Cart>,
-	cartItemStorage: StorageCollection<CartItem>,
+	cartStorage: StorageCollection,
+	cartItemStorage: StorageCollection,
 	sourceCartId: string,
 	targetCartId: string,
 ): Promise<Cart> {
@@ -227,8 +214,8 @@ export async function mergeCarts(
 }
 
 export async function recalculateCart(
-	cartStorage: StorageCollection<Cart>,
-	cartItemStorage: StorageCollection<CartItem>,
+	cartStorage: StorageCollection,
+	cartItemStorage: StorageCollection,
 	cartId: string,
 ): Promise<Cart | null> {
 	const cart = await cartStorage.get(cartId);
@@ -252,10 +239,10 @@ export async function recalculateCart(
 }
 
 export async function recalculateCartWithValidation(
-	cartStorage: StorageCollection<Cart>,
-	cartItemStorage: StorageCollection<CartItem>,
-	productStorage: StorageCollection<Record<string, unknown>>,
-	variantStorage: StorageCollection<Record<string, unknown>>,
+	cartStorage: StorageCollection,
+	cartItemStorage: StorageCollection,
+	productStorage: StorageCollection,
+	variantStorage: StorageCollection,
 	cartId: string,
 ): Promise<{ cart: Cart; removedItems: CartItem[] }> {
 	const cart = await cartStorage.get(cartId);

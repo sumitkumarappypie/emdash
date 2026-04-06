@@ -45,7 +45,7 @@ export type CommerceStorage = PluginStorageConfig & {
 		uniqueIndexes: ["email"];
 	};
 	coupons: {
-		indexes: ["code", "status", "startsAt", "expiresAt"];
+		indexes: ["code", "status", "startsAt", "expiresAt", "createdAt"];
 		uniqueIndexes: ["code"];
 	};
 	orderCounter: {
@@ -98,7 +98,7 @@ export const COMMERCE_STORAGE_CONFIG = {
 		uniqueIndexes: ["email"] as const,
 	},
 	coupons: {
-		indexes: ["code", "status", "startsAt", "expiresAt"] as const,
+		indexes: ["code", "status", "startsAt", "expiresAt", "createdAt"] as const,
 		uniqueIndexes: ["code"] as const,
 	},
 	orderCounter: {

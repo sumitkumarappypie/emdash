@@ -1,35 +1,23 @@
 import { CommerceError, getCartItems } from "./cart.js";
-import type { Cart, CartItem, Order, OrderItem } from "./types.js";
-
-type StorageCollection<T = unknown> = {
-	get(id: string): Promise<T | null>;
-	put(id: string, data: T): Promise<void>;
-	delete(id: string): Promise<boolean>;
-	query(opts?: {
-		where?: Record<string, unknown>;
-		orderBy?: Record<string, string>;
-		limit?: number;
-	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
-};
+import type { StorageCollection } from "./storage-types.js";
+import type { Order, OrderItem } from "./types.js";
 
 interface CheckoutStorages {
-	carts: StorageCollection<Cart>;
-	cartItems: StorageCollection<CartItem>;
-	orders: StorageCollection<Order>;
-	orderItems: StorageCollection<OrderItem>;
-	products: StorageCollection<Record<string, unknown>>;
-	variants: StorageCollection<Record<string, unknown>>;
-	customers: StorageCollection<Record<string, unknown>>;
-	orderCounter: StorageCollection<{ value: number }>;
+	carts: StorageCollection;
+	cartItems: StorageCollection;
+	orders: StorageCollection;
+	orderItems: StorageCollection;
+	products: StorageCollection;
+	variants: StorageCollection;
+	customers: StorageCollection;
+	orderCounter: StorageCollection;
 }
 
 function generateId(): string {
 	return crypto.randomUUID();
 }
 
-async function nextOrderNumber(
-	counterStorage: StorageCollection<{ value: number }>,
-): Promise<string> {
+async function nextOrderNumber(counterStorage: StorageCollection): Promise<string> {
 	const counter = await counterStorage.get("current");
 	const nextValue = (counter?.value ?? 1000) + 1;
 	await counterStorage.put("current", { value: nextValue });
@@ -75,6 +63,9 @@ export async function createOrderFromCart(
 		totalPrice: number;
 	}> = [];
 
+	// Track product types to detect digital-only carts
+	const productTypes: string[] = [];
+
 	for (const cartItem of cartItems) {
 		const product = await storages.products.get(cartItem.productId);
 		if (!product) {
@@ -89,6 +80,8 @@ export async function createOrderFromCart(
 				`Product ${product.name} is no longer available`,
 			);
 		}
+
+		productTypes.push((product.productType as string) ?? "physical");
 
 		let unitPrice = product.basePrice as number;
 		let variantName = "";
@@ -137,6 +130,13 @@ export async function createOrderFromCart(
 				inventoryQuantity: current - item.quantity,
 			});
 		}
+	}
+
+	// Digital-only carts skip shipping
+	const allDigital = productTypes.every((t) => t === "digital");
+	if (allDigital) {
+		cart.shippingTotal = 0;
+		cart.shippingMethodId = null;
 	}
 
 	// Generate order number

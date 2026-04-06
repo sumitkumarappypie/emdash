@@ -1,19 +1,6 @@
+import type { StorageCollection } from "./storage-types.js";
 import type { Product } from "./types.js";
 import { createProductSchema, updateProductSchema } from "./validation.js";
-
-type StorageCollection = {
-	get(id: string): Promise<Product | null>;
-	put(id: string, data: Product): Promise<void>;
-	delete(id: string): Promise<boolean>;
-	exists(id: string): Promise<boolean>;
-	query(opts?: {
-		where?: Record<string, unknown>;
-		orderBy?: Record<string, string>;
-		limit?: number;
-		cursor?: string;
-	}): Promise<{ items: Array<{ id: string; data: Product }>; hasMore: boolean; cursor?: string }>;
-	count(where?: Record<string, unknown>): Promise<number>;
-};
 
 function generateId(): string {
 	return crypto.randomUUID();

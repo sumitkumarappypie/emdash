@@ -1,26 +1,13 @@
 import { CommerceError } from "./cart.js";
-import type { Order, OrderItem, OrderStatus, FulfillmentStatus, Transaction } from "./types.js";
+import type { StorageCollection } from "./storage-types.js";
+import type { Order, OrderItem, OrderStatus, FulfillmentStatus } from "./types.js";
 
-type StorageCollection<T = unknown> = {
-	get(id: string): Promise<T | null>;
-	put(id: string, data: T): Promise<void>;
-	delete(id: string): Promise<boolean>;
-	query(opts?: {
-		where?: Record<string, unknown>;
-		orderBy?: Record<string, string>;
-		limit?: number;
-	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
-};
-
-export async function getOrder(
-	storage: StorageCollection<Order>,
-	id: string,
-): Promise<Order | null> {
+export async function getOrder(storage: StorageCollection, id: string): Promise<Order | null> {
 	return storage.get(id);
 }
 
 export async function getOrderByNumber(
-	storage: StorageCollection<Order>,
+	storage: StorageCollection,
 	orderNumber: string,
 ): Promise<Order | null> {
 	const result = await storage.query({ where: { orderNumber }, limit: 1 });
@@ -28,7 +15,7 @@ export async function getOrderByNumber(
 }
 
 export async function listOrders(
-	storage: StorageCollection<Order>,
+	storage: StorageCollection,
 	opts: {
 		status?: OrderStatus;
 		paymentStatus?: string;
@@ -55,7 +42,7 @@ export async function listOrders(
 }
 
 export async function getOrderItems(
-	storage: StorageCollection<OrderItem>,
+	storage: StorageCollection,
 	orderId: string,
 ): Promise<OrderItem[]> {
 	const result = await storage.query({ where: { orderId }, limit: 1000 });
@@ -63,7 +50,7 @@ export async function getOrderItems(
 }
 
 export async function updateOrderStatus(
-	storage: StorageCollection<Order>,
+	storage: StorageCollection,
 	orderId: string,
 	status: OrderStatus,
 ): Promise<Order | null> {
@@ -81,8 +68,8 @@ export async function updateOrderStatus(
 }
 
 export async function fulfillOrder(
-	orderStorage: StorageCollection<Order>,
-	orderItemStorage: StorageCollection<OrderItem>,
+	orderStorage: StorageCollection,
+	orderItemStorage: StorageCollection,
 	orderId: string,
 	input: {
 		itemIds: string[];
@@ -138,13 +125,13 @@ export async function fulfillOrder(
 }
 
 export async function refundOrder(
-	orderStorage: StorageCollection<Order>,
-	transactionStorage: StorageCollection<Transaction>,
+	orderStorage: StorageCollection,
+	transactionStorage: StorageCollection,
 	orderId: string,
 	input: { amount?: number; reason?: string },
 	inventoryStorages?: {
-		orderItems: StorageCollection<OrderItem>;
-		products: StorageCollection<Record<string, unknown>>;
+		orderItems: StorageCollection;
+		products: StorageCollection;
 	},
 ): Promise<Order> {
 	const order = await orderStorage.get(orderId);
@@ -203,7 +190,7 @@ export async function refundOrder(
 }
 
 export async function markOrderPaid(
-	storage: StorageCollection<Order>,
+	storage: StorageCollection,
 	orderId: string,
 	paymentIntentId: string,
 ): Promise<Order | null> {

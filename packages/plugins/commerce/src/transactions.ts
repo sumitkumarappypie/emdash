@@ -1,17 +1,8 @@
+import type { StorageCollection } from "./storage-types.js";
 import type { Transaction, TransactionStatus, TransactionType } from "./types.js";
 
-type StorageCollection<T = unknown> = {
-	get(id: string): Promise<T | null>;
-	put(id: string, data: T): Promise<void>;
-	query(opts?: {
-		where?: Record<string, unknown>;
-		orderBy?: Record<string, string>;
-		limit?: number;
-	}): Promise<{ items: Array<{ id: string; data: T }>; hasMore: boolean }>;
-};
-
 export async function recordTransaction(
-	storage: StorageCollection<Transaction>,
+	storage: StorageCollection,
 	input: {
 		orderId: string;
 		type: TransactionType;
@@ -42,7 +33,7 @@ export async function recordTransaction(
 }
 
 export async function getTransactionsByOrder(
-	storage: StorageCollection<Transaction>,
+	storage: StorageCollection,
 	orderId: string,
 ): Promise<Transaction[]> {
 	const result = await storage.query({
