@@ -30,6 +30,7 @@ import type {
 	ContentAccessWithWrite,
 	MediaAccess,
 	MediaAccessWithWrite,
+	MenuAccess,
 	HttpAccess,
 	LogAccess,
 	SiteInfo,
@@ -681,6 +682,105 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 }
 
 // =============================================================================
+// Menu Access
+// =============================================================================
+
+/**
+ * Create menu access for a plugin.
+ * Allows adding/removing custom link items from site navigation menus.
+ */
+export function createMenuAccess(db: Kysely<Database>): MenuAccess {
+	return {
+		async addItem(menuName, item) {
+			const menu = await db
+				.selectFrom("_emdash_menus")
+				.select("id")
+				.where("name", "=", menuName)
+				.executeTakeFirst();
+			if (!menu) return null;
+
+			// Check if an item with this URL already exists
+			const existing = await db
+				.selectFrom("_emdash_menu_items")
+				.select("id")
+				.where("menu_id", "=", menu.id)
+				.where("type", "=", "custom")
+				.where("custom_url", "=", item.url)
+				.executeTakeFirst();
+			if (existing) return existing.id;
+
+			// Get max sort_order for top-level items
+			const maxOrder = await db
+				.selectFrom("_emdash_menu_items")
+				.select(({ fn }) => fn.max("sort_order").as("max"))
+				.where("menu_id", "=", menu.id)
+				.where("parent_id", "is", null)
+				.executeTakeFirst();
+
+			const sortOrder = ((maxOrder?.max as number) ?? -1) + 1;
+			const id = ulid();
+
+			await db
+				.insertInto("_emdash_menu_items")
+				.values({
+					id,
+					menu_id: menu.id,
+					parent_id: null,
+					sort_order: sortOrder,
+					type: "custom",
+					reference_collection: null,
+					reference_id: null,
+					custom_url: item.url,
+					label: item.label,
+					target: item.target ?? null,
+					title_attr: null,
+					css_classes: null,
+				})
+				.execute();
+
+			return id;
+		},
+
+		async removeItemByUrl(menuName, url) {
+			const menu = await db
+				.selectFrom("_emdash_menus")
+				.select("id")
+				.where("name", "=", menuName)
+				.executeTakeFirst();
+			if (!menu) return false;
+
+			const result = await db
+				.deleteFrom("_emdash_menu_items")
+				.where("menu_id", "=", menu.id)
+				.where("type", "=", "custom")
+				.where("custom_url", "=", url)
+				.execute();
+
+			return (result[0]?.numDeletedRows ?? 0n) > 0n;
+		},
+
+		async hasItemWithUrl(menuName, url) {
+			const menu = await db
+				.selectFrom("_emdash_menus")
+				.select("id")
+				.where("name", "=", menuName)
+				.executeTakeFirst();
+			if (!menu) return false;
+
+			const item = await db
+				.selectFrom("_emdash_menu_items")
+				.select("id")
+				.where("menu_id", "=", menu.id)
+				.where("type", "=", "custom")
+				.where("custom_url", "=", url)
+				.executeTakeFirst();
+
+			return !!item;
+		},
+	};
+}
+
+// =============================================================================
 // Plugin Context Factory
 // =============================================================================
 
@@ -801,6 +901,12 @@ export class PluginContextFactory {
 			};
 		}
 
+		// Capability-gated: menus
+		let menus: MenuAccess | undefined;
+		if (capabilities.has("menus:manage")) {
+			menus = createMenuAccess(this.db);
+		}
+
 		return {
 			plugin: {
 				id: plugin.id,
@@ -817,6 +923,7 @@ export class PluginContextFactory {
 			users,
 			cron,
 			email,
+			menus,
 		};
 	}
 }

@@ -24,6 +24,7 @@ export const PLUGIN_CAPABILITIES = [
 	"email:provide",
 	"email:intercept",
 	"page:inject",
+	"menus:manage",
 ] as const;
 
 /** Must stay in sync with FieldType in schema/types.ts */

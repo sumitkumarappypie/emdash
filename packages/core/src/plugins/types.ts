@@ -33,7 +33,8 @@ export type PluginCapability =
 	| "email:send" // ctx.email is available (when a provider is configured)
 	| "email:provide" // can register email:deliver exclusive hook (transport provider)
 	| "email:intercept" // can register email:beforeSend / email:afterSend hooks
-	| "page:inject"; // can register page:fragments hook (inject scripts/styles into pages)
+	| "page:inject" // can register page:fragments hook (inject scripts/styles into pages)
+	| "menus:manage"; // ctx.menus is available — add/remove custom menu items
 
 // =============================================================================
 // Storage Types
@@ -327,6 +328,22 @@ export interface UserAccess {
 	}>;
 }
 
+/**
+ * Menu access interface - requires menus:manage capability.
+ * Allows plugins to add/remove custom link items in site navigation menus.
+ */
+export interface MenuAccess {
+	/** Add a custom link to a menu. Returns the item ID. No-op if menu doesn't exist. */
+	addItem(
+		menuName: string,
+		item: { label: string; url: string; target?: string },
+	): Promise<string | null>;
+	/** Remove a menu item by its URL. Returns true if removed. */
+	removeItemByUrl(menuName: string, url: string): Promise<boolean>;
+	/** Check if a menu item with the given URL exists */
+	hasItemWithUrl(menuName: string, url: string): Promise<boolean>;
+}
+
 // =============================================================================
 // Plugin Context
 // =============================================================================
@@ -373,6 +390,9 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Email access - only if email:send capability and a provider is configured */
 	email?: EmailAccess;
+
+	/** Menu access - only if menus:manage capability */
+	menus?: MenuAccess;
 }
 
 // =============================================================================

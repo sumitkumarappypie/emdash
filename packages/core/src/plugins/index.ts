@@ -36,6 +36,7 @@ export {
 	createBlockedHttpAccess,
 	createLogAccess,
 	createUserAccess,
+	createMenuAccess,
 	createUrlHelper,
 	createSiteInfo,
 } from "./context.js";
@@ -108,6 +109,7 @@ export type {
 	SiteInfo,
 	UserInfo,
 	UserAccess,
+	MenuAccess,
 	ContentItem,
 	MediaItem,
 	ContentListOptions,
