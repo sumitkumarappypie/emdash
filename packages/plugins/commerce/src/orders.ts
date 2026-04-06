@@ -20,6 +20,7 @@ export async function listOrders(
 		status?: OrderStatus;
 		paymentStatus?: string;
 		fulfillmentStatus?: FulfillmentStatus;
+		customerId?: string;
 		limit?: number;
 		cursor?: string;
 	} = {},
@@ -28,6 +29,7 @@ export async function listOrders(
 	if (opts.status) where.status = opts.status;
 	if (opts.paymentStatus) where.paymentStatus = opts.paymentStatus;
 	if (opts.fulfillmentStatus) where.fulfillmentStatus = opts.fulfillmentStatus;
+	if (opts.customerId) where.customerId = opts.customerId;
 
 	const result = await storage.query({
 		where: Object.keys(where).length > 0 ? where : undefined,
