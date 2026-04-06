@@ -1,4 +1,6 @@
-This file provides guidance to agentic coding tools when working with code in this repository.
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Status
 
@@ -11,9 +13,16 @@ This is a monorepo using pnpm workspaces.
 `CLAUDE.md` is a symlink to `AGENTS.md`. `.opencode/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
 
 - **Root**: Workspace configuration and shared tooling
-- **packages/core**: Main `emdash` package - Astro integration and core APIs
-- **demos/**: Demo applications and examples (`demos/simple/` is the primary dev target)
-- **templates/**: Starter templates (blog, marketing, portfolio, starter, blank) -- contributors copy these into `demos/` to build their own sites
+- **packages/core**: Main `emdash` package -- Astro integration, REST API, admin UI, CLI
+- **packages/admin**: `@emdash-cms/admin` -- React admin SPA (Vite + React + TanStack Query)
+- **packages/auth**: `@emdash-cms/auth` -- Authentication (passkeys, OAuth, magic links)
+- **packages/blocks**: `@emdash-cms/blocks` -- Portable Text block definitions
+- **packages/cloudflare**: `@emdash-cms/cloudflare` -- Cloudflare adapter (D1, R2, Worker Loader plugin sandbox)
+- **packages/plugins/**: First-party plugins (forms, embeds, SEO, audit-log, etc.)
+- **packages/create-emdash**: `create-emdash` -- Project scaffolder
+- **packages/gutenberg-to-portable-text**: WordPress block -> Portable Text converter
+- **demos/**: Demo applications (`demos/simple/` is the primary dev target -- Node.js + SQLite)
+- **templates/**: Starter templates (blog, marketing, portfolio, starter, blank)
 - **docs/**: Public documentation site (Starlight)
 
 # Rules
@@ -94,8 +103,25 @@ EmDash is an Astro-native CMS that stores its schema in the database, not in cod
 
 - `pnpm build` - Build all packages
 - `pnpm test` - Run tests for all packages
+- `pnpm test:unit` - Run unit tests (core, auth, blocks, gutenberg converter, marketplace)
+- `pnpm test:browser` - Run admin browser tests
+- `pnpm test:e2e` - Run Playwright E2E tests (requires demo running)
+- `pnpm typecheck` - TypeScript check (packages only)
+- `pnpm typecheck:demos` - TypeScript check (Astro demos)
+- `pnpm typecheck:templates` - TypeScript check (templates)
 - `pnpm check` - Run type checking and linting for all packages
-- `pnpm format` - Format code using oxfmt
+- `pnpm format` - Format code (oxfmt for source + prettier for .astro)
+- `pnpm --silent lint:quick` - Fast lint (<1s, no type info) -- run after every edit
+- `pnpm --silent lint:json | jq '.diagnostics | length'` - Full type-aware lint (~10s) -- run before commits
+
+### Filtered commands (target specific packages):
+
+- `pnpm --filter emdash test` - Run core tests only
+- `pnpm --filter emdash test -- tests/unit/specific.test.ts` - Run a single test file
+- `pnpm --filter emdash test --watch` - Watch mode for core tests
+- `pnpm --filter emdash dev` - Watch mode for core package rebuild
+- `pnpm --filter emdash-demo seed` - Seed demo with sample content
+- `pnpm --filter emdash-demo dev` - Run the demo dev server (http://localhost:4321)
 
 ### Package-level commands (run within individual packages):
 
@@ -269,6 +295,7 @@ Route files live in `packages/core/src/astro/routes/api/`. Conventions:
 - Access the CMS runtime via `const { emdash } = locals;`.
 - Access the user via `const user = (locals as { user?: User }).user;`.
 - URL structure mirrors file structure: `content/[collection]/index.ts` for list/create, `content/[collection]/[id].ts` for get/update/delete, with sub-actions as siblings: `[id]/publish.ts`, `[id]/schedule.ts`.
+- **Route registration:** New routes must be registered in `packages/core/src/astro/integration/routes.ts`. They are not auto-discovered.
 - **Never** add GET handlers for state-changing operations.
 
 ### Handler Layer

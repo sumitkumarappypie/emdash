@@ -132,6 +132,7 @@ packages/core/tests/integration/plugins/commerce/
 ## Task 1: Scaffold Commerce Core Plugin Package
 
 **Files:**
+
 - Create: `packages/plugins/commerce/package.json`
 - Create: `packages/plugins/commerce/tsconfig.json`
 - Create: `packages/plugins/commerce/src/types.ts`
@@ -143,31 +144,31 @@ packages/core/tests/integration/plugins/commerce/
 
 ```json
 {
-  "name": "@emdash-cms/plugin-commerce",
-  "version": "0.1.0",
-  "description": "E-commerce plugin for EmDash CMS — products, cart, checkout, orders",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./sandbox": "./src/sandbox-entry.ts"
-  },
-  "files": ["src"],
-  "keywords": ["emdash", "cms", "plugin", "ecommerce", "shop", "cart", "checkout"],
-  "author": "EmDash CMS",
-  "license": "MIT",
-  "dependencies": {},
-  "peerDependencies": {
-    "emdash": "workspace:*"
-  },
-  "scripts": {
-    "typecheck": "tsgo --noEmit"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/emdash-cms/emdash.git",
-    "directory": "packages/plugins/commerce"
-  }
+	"name": "@emdash-cms/plugin-commerce",
+	"version": "0.1.0",
+	"description": "E-commerce plugin for EmDash CMS — products, cart, checkout, orders",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": ["src"],
+	"keywords": ["emdash", "cms", "plugin", "ecommerce", "shop", "cart", "checkout"],
+	"author": "EmDash CMS",
+	"license": "MIT",
+	"dependencies": {},
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugins/commerce"
+	}
 }
 ```
 
@@ -175,14 +176,14 @@ packages/core/tests/integration/plugins/commerce/
 
 ```json
 {
-  "extends": "../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "jsx": "react-jsx"
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+	"extends": "../tsconfig.base.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "./src",
+		"jsx": "react-jsx"
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist"]
 }
 ```
 
@@ -593,7 +594,22 @@ export const COMMERCE_STORAGE_CONFIG = {
 import type { PluginDescriptor } from "emdash";
 import { COMMERCE_STORAGE_CONFIG } from "./storage.js";
 
-export type { Product, Variant, Category, Cart, CartItem, Order, OrderItem, Transaction, Customer, Coupon, Address, ShippingRate, TaxResult, PaymentCreateResult } from "./types.js";
+export type {
+	Product,
+	Variant,
+	Category,
+	Cart,
+	CartItem,
+	Order,
+	OrderItem,
+	Transaction,
+	Customer,
+	Coupon,
+	Address,
+	ShippingRate,
+	TaxResult,
+	PaymentCreateResult,
+} from "./types.js";
 
 export function commercePlugin(): PluginDescriptor {
 	return {
@@ -661,6 +677,7 @@ git commit -m "feat(commerce): scaffold core plugin package with types and stora
 ## Task 2: Validation Schemas
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/validation.ts`
 
 - [ ] **Step 1: Create Zod validation schemas for all inputs**
@@ -886,7 +903,18 @@ export const productQuerySchema = paginationSchema.extend({
 });
 
 export const orderQuerySchema = paginationSchema.extend({
-	status: z.enum(["pending", "paid", "processing", "shipped", "delivered", "completed", "cancelled", "refunded"]).optional(),
+	status: z
+		.enum([
+			"pending",
+			"paid",
+			"processing",
+			"shipped",
+			"delivered",
+			"completed",
+			"cancelled",
+			"refunded",
+		])
+		.optional(),
 	paymentStatus: z.enum(["unpaid", "paid", "partially_refunded", "refunded"]).optional(),
 	fulfillmentStatus: z.enum(["unfulfilled", "partially_fulfilled", "fulfilled"]).optional(),
 	customerId: z.string().optional(),
@@ -919,6 +947,7 @@ git commit -m "feat(commerce): add Zod validation schemas for all inputs"
 ## Task 3: Product CRUD Operations
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/products.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/products.test.ts`
 
@@ -940,10 +969,17 @@ function createMockStorage() {
 	const store = new Map<string, unknown>();
 	return {
 		get: async (id: string) => store.get(id) ?? null,
-		put: async (id: string, data: unknown) => { store.set(id, data); },
+		put: async (id: string, data: unknown) => {
+			store.set(id, data);
+		},
 		delete: async (id: string) => store.delete(id),
 		exists: async (id: string) => store.has(id),
-		query: async (opts?: { where?: Record<string, unknown>; orderBy?: Record<string, string>; limit?: number; cursor?: string }) => {
+		query: async (opts?: {
+			where?: Record<string, unknown>;
+			orderBy?: Record<string, string>;
+			limit?: number;
+			cursor?: string;
+		}) => {
 			let items = Array.from(store.entries()).map(([id, data]) => ({ id, data }));
 			if (opts?.where) {
 				for (const [key, value] of Object.entries(opts.where)) {
@@ -967,7 +1003,10 @@ function createMockStorage() {
 			for (const data of store.values()) {
 				let match = true;
 				for (const [key, value] of Object.entries(where)) {
-					if ((data as Record<string, unknown>)[key] !== value) { match = false; break; }
+					if ((data as Record<string, unknown>)[key] !== value) {
+						match = false;
+						break;
+					}
 				}
 				if (match) count++;
 			}
@@ -1034,7 +1073,12 @@ describe("Product CRUD", () => {
 	});
 
 	it("lists products filtered by status", async () => {
-		await createProduct(storage, { name: "Active", slug: "active", basePrice: 10, status: "active" });
+		await createProduct(storage, {
+			name: "Active",
+			slug: "active",
+			basePrice: 10,
+			status: "active",
+		});
 		await createProduct(storage, { name: "Draft", slug: "draft", basePrice: 20, status: "draft" });
 
 		const result = await listProducts(storage, { status: "active", limit: 50 });
@@ -1148,10 +1192,7 @@ export async function createProduct(
 	return product;
 }
 
-export async function getProduct(
-	storage: StorageCollection,
-	id: string,
-): Promise<Product | null> {
+export async function getProduct(storage: StorageCollection, id: string): Promise<Product | null> {
 	return storage.get(id);
 }
 
@@ -1212,10 +1253,7 @@ export async function updateProduct(
 	return updated;
 }
 
-export async function deleteProduct(
-	storage: StorageCollection,
-	id: string,
-): Promise<boolean> {
+export async function deleteProduct(storage: StorageCollection, id: string): Promise<boolean> {
 	const existing = await storage.get(id);
 	if (!existing) return false;
 
@@ -1247,6 +1285,7 @@ git commit -m "feat(commerce): add product CRUD with tests"
 ## Task 4: Category and Variant CRUD
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/categories.ts`
 - Create: `packages/plugins/commerce/src/variants.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/categories.test.ts`
@@ -1255,11 +1294,13 @@ git commit -m "feat(commerce): add product CRUD with tests"
 These follow the exact same pattern as products.ts. Key differences:
 
 **categories.ts:**
+
 - `createCategory`, `getCategory`, `getCategoryBySlug`, `listCategories`, `updateCategory`, `deleteCategory`
 - `getCategoryTree` — returns nested structure by querying all categories and building parent-child tree in memory
 - Delete checks for child categories and reassigns them to parent (or root) before deleting
 
 **variants.ts:**
+
 - `createVariant`, `getVariant`, `listVariantsByProduct`, `updateVariant`, `deleteVariant`
 - `generateVariantCombinations(productId, optionTypes)` — takes `{Size: ["S","M","L"], Color: ["Red","Blue"]}` and creates all 6 combinations
 - All queries scoped to `productId` (via `where: { productId }`)
@@ -1279,9 +1320,7 @@ Run: `pnpm --filter emdash test -- tests/unit/plugins/commerce/categories.test.t
 Same CRUD pattern as products.ts. Additional function:
 
 ```typescript
-export async function getCategoryTree(
-	storage: StorageCollection,
-): Promise<CategoryNode[]> {
+export async function getCategoryTree(storage: StorageCollection): Promise<CategoryNode[]> {
 	const result = await storage.query({ orderBy: { sortOrder: "asc" }, limit: 1000 });
 	const categories = result.items.map((item) => item.data);
 
@@ -1313,6 +1352,7 @@ export interface CategoryNode extends Category {
 Test `createVariant`, `listVariantsByProduct`, `generateVariantCombinations`, `updateVariant`, `deleteVariant`.
 
 The `generateVariantCombinations` test:
+
 ```typescript
 it("generates all variant combinations from option types", async () => {
 	const variants = await generateVariantCombinations(storage, "prod-1", {
@@ -1386,6 +1426,7 @@ git commit -m "feat(commerce): add category and variant CRUD with tests"
 ## Task 5: Cart Logic
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/cart.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/cart.test.ts`
 
@@ -1434,7 +1475,7 @@ describe("Cart", () => {
 
 		await productStorage.put("prod-1", {
 			id: "prod-1",
-			basePrice: 25.00,
+			basePrice: 25.0,
 			status: "active",
 			trackInventory: true,
 			inventoryQuantity: 10,
@@ -1451,8 +1492,8 @@ describe("Cart", () => {
 
 		expect(item.productId).toBe("prod-1");
 		expect(item.quantity).toBe(2);
-		expect(item.unitPrice).toBe(25.00);
-		expect(item.totalPrice).toBe(50.00);
+		expect(item.unitPrice).toBe(25.0);
+		expect(item.totalPrice).toBe(50.0);
 	});
 
 	it("rejects adding out-of-stock product", async () => {
@@ -1460,7 +1501,7 @@ describe("Cart", () => {
 
 		await productStorage.put("prod-1", {
 			id: "prod-1",
-			basePrice: 25.00,
+			basePrice: 25.0,
 			status: "active",
 			trackInventory: true,
 			inventoryQuantity: 0,
@@ -1479,7 +1520,7 @@ describe("Cart", () => {
 
 		await productStorage.put("prod-1", {
 			id: "prod-1",
-			basePrice: 10.00,
+			basePrice: 10.0,
 			status: "active",
 			trackInventory: false,
 		});
@@ -1498,14 +1539,24 @@ describe("Cart", () => {
 		);
 
 		expect(item.quantity).toBe(3);
-		expect(item.totalPrice).toBe(30.00);
+		expect(item.totalPrice).toBe(30.0);
 	});
 
 	it("recalculates cart totals", async () => {
 		const cart = await createCart(cartStorage, { sessionId: "sess-123" });
 
-		await productStorage.put("prod-1", { id: "prod-1", basePrice: 10.00, status: "active", trackInventory: false });
-		await productStorage.put("prod-2", { id: "prod-2", basePrice: 20.00, status: "active", trackInventory: false });
+		await productStorage.put("prod-1", {
+			id: "prod-1",
+			basePrice: 10.0,
+			status: "active",
+			trackInventory: false,
+		});
+		await productStorage.put("prod-2", {
+			id: "prod-2",
+			basePrice: 20.0,
+			status: "active",
+			trackInventory: false,
+		});
 
 		await addCartItem(cartStorage, cartItemStorage, productStorage, variantStorage, cart.id, {
 			productId: "prod-1",
@@ -1517,14 +1568,19 @@ describe("Cart", () => {
 		});
 
 		const updated = await recalculateCart(cartStorage, cartItemStorage, cart.id);
-		expect(updated!.subtotal).toBe(40.00);
-		expect(updated!.total).toBe(40.00);
+		expect(updated!.subtotal).toBe(40.0);
+		expect(updated!.total).toBe(40.0);
 	});
 
 	it("removes an item from the cart", async () => {
 		const cart = await createCart(cartStorage, { sessionId: "sess-123" });
 
-		await productStorage.put("prod-1", { id: "prod-1", basePrice: 10.00, status: "active", trackInventory: false });
+		await productStorage.put("prod-1", {
+			id: "prod-1",
+			basePrice: 10.0,
+			status: "active",
+			trackInventory: false,
+		});
 
 		const item = await addCartItem(
 			cartStorage,
@@ -1542,7 +1598,12 @@ describe("Cart", () => {
 	it("updates item quantity", async () => {
 		const cart = await createCart(cartStorage, { sessionId: "sess-123" });
 
-		await productStorage.put("prod-1", { id: "prod-1", basePrice: 10.00, status: "active", trackInventory: false });
+		await productStorage.put("prod-1", {
+			id: "prod-1",
+			basePrice: 10.0,
+			status: "active",
+			trackInventory: false,
+		});
 
 		const item = await addCartItem(
 			cartStorage,
@@ -1555,7 +1616,7 @@ describe("Cart", () => {
 
 		const updated = await updateCartItemQuantity(cartItemStorage, item.id, 5);
 		expect(updated!.quantity).toBe(5);
-		expect(updated!.totalPrice).toBe(50.00);
+		expect(updated!.totalPrice).toBe(50.0);
 	});
 });
 ```
@@ -1644,14 +1705,20 @@ export async function addCartItem(
 	productStorage: StorageCollection<Record<string, unknown>>,
 	variantStorage: StorageCollection<Record<string, unknown>>,
 	cartId: string,
-	input: { productId: string; variantId?: string | null; quantity: number; metadata?: Record<string, unknown> },
+	input: {
+		productId: string;
+		variantId?: string | null;
+		quantity: number;
+		metadata?: Record<string, unknown>;
+	},
 ): Promise<CartItem> {
 	const cart = await cartStorage.get(cartId);
 	if (!cart) throw new CommerceError("CART_NOT_FOUND", "Cart not found");
 
 	const product = await productStorage.get(input.productId);
 	if (!product) throw new CommerceError("PRODUCT_NOT_FOUND", "Product not found");
-	if (product.status !== "active") throw new CommerceError("PRODUCT_UNAVAILABLE", "Product is not available");
+	if (product.status !== "active")
+		throw new CommerceError("PRODUCT_UNAVAILABLE", "Product is not available");
 
 	let unitPrice = product.basePrice as number;
 
@@ -1679,8 +1746,7 @@ export async function addCartItem(
 
 	const existing = existingItems.items.find(
 		(item) =>
-			item.data.productId === input.productId &&
-			item.data.variantId === (input.variantId ?? null),
+			item.data.productId === input.productId && item.data.variantId === (input.variantId ?? null),
 	);
 
 	if (existing) {
@@ -1755,9 +1821,8 @@ export async function recalculateCart(
 	const items = await getCartItems(cartItemStorage, cartId);
 
 	const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-	const total = Math.round(
-		(subtotal - cart.discountTotal + cart.shippingTotal + cart.taxTotal) * 100,
-	) / 100;
+	const total =
+		Math.round((subtotal - cart.discountTotal + cart.shippingTotal + cart.taxTotal) * 100) / 100;
 
 	const updated: Cart = {
 		...cart,
@@ -1787,12 +1852,14 @@ git commit -m "feat(commerce): add cart logic with inventory checks and recalcul
 ## Task 6: Coupon Engine
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/coupons.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/coupons.test.ts`
 
 - [ ] **Step 1: Write failing tests for coupon validation and application**
 
 Key test cases:
+
 - Valid percentage coupon applies correctly
 - Valid fixed_amount coupon applies correctly
 - free_shipping coupon sets discount to shipping amount
@@ -1811,7 +1878,7 @@ describe("Coupon Engine", () => {
 		const items = [makeCartItem({ totalPrice: 100 })];
 
 		const discount = calculateDiscount(coupon, cart, items, []);
-		expect(discount).toBe(10.00);
+		expect(discount).toBe(10.0);
 	});
 
 	it("caps discount at maximumDiscountAmount", async () => {
@@ -1820,7 +1887,7 @@ describe("Coupon Engine", () => {
 		const items = [makeCartItem({ totalPrice: 100 })];
 
 		const discount = calculateDiscount(coupon, cart, items, []);
-		expect(discount).toBe(20.00);
+		expect(discount).toBe(20.0);
 	});
 
 	it("rejects expired coupon", () => {
@@ -1850,18 +1917,16 @@ describe("Coupon Engine", () => {
 Two core functions:
 
 ```typescript
-export function validateCoupon(
-	coupon: Coupon,
-	cart: Cart,
-	cartItems: CartItem[],
-): string | null {
+export function validateCoupon(coupon: Coupon, cart: Cart, cartItems: CartItem[]): string | null {
 	if (coupon.status !== "active") return "INVALID_COUPON";
 
 	const now = new Date();
 	if (coupon.expiresAt && new Date(coupon.expiresAt) < now) return "COUPON_EXPIRED";
 	if (coupon.startsAt && new Date(coupon.startsAt) > now) return "INVALID_COUPON";
-	if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) return "COUPON_LIMIT_REACHED";
-	if (coupon.minimumOrderAmount !== null && cart.subtotal < coupon.minimumOrderAmount) return "MINIMUM_NOT_MET";
+	if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit)
+		return "COUPON_LIMIT_REACHED";
+	if (coupon.minimumOrderAmount !== null && cart.subtotal < coupon.minimumOrderAmount)
+		return "MINIMUM_NOT_MET";
 
 	if (coupon.appliesTo === "specific_products") {
 		const hasMatch = cartItems.some((item) => coupon.productIds.includes(item.productId));
@@ -1929,6 +1994,7 @@ git commit -m "feat(commerce): add coupon validation and discount calculation"
 ## Task 7: Customer Management & Order Counter
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/customers.ts`
 - Create: `packages/plugins/commerce/src/transactions.ts`
 
@@ -1958,6 +2024,7 @@ git commit -m "feat(commerce): add customer management and transaction recording
 ## Task 8: Checkout — Cart to Order Conversion
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/checkout.ts`
 - Create: `packages/plugins/commerce/src/orders.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/checkout.test.ts`
@@ -2062,7 +2129,8 @@ export async function createOrderFromCart(
 ): Promise<Order> {
 	const cart = await storages.carts.get(cartId);
 	if (!cart) throw new CommerceError("CART_NOT_FOUND", "Cart not found");
-	if (new Date(cart.expiresAt) < new Date()) throw new CommerceError("CART_EXPIRED", "Cart has expired");
+	if (new Date(cart.expiresAt) < new Date())
+		throw new CommerceError("CART_EXPIRED", "Cart has expired");
 
 	const items = await getCartItems(storages.cartItems, cartId);
 	if (items.length === 0) throw new CommerceError("CART_EMPTY", "Cart is empty");
@@ -2165,9 +2233,8 @@ export async function createOrderFromCart(
 	const now = new Date().toISOString();
 	const orderId = crypto.randomUUID();
 
-	const total = Math.round(
-		(subtotal - cart.discountTotal + cart.shippingTotal + cart.taxTotal) * 100,
-	) / 100;
+	const total =
+		Math.round((subtotal - cart.discountTotal + cart.shippingTotal + cart.taxTotal) * 100) / 100;
 
 	const order: Order = {
 		id: orderId,
@@ -2223,23 +2290,32 @@ import type { Order, OrderItem } from "./types.js";
 import { CommerceError } from "./cart.js";
 
 // Order queries
-export async function getOrder(storage: StorageCollection<Order>, id: string): Promise<Order | null> {
+export async function getOrder(
+	storage: StorageCollection<Order>,
+	id: string,
+): Promise<Order | null> {
 	return storage.get(id);
 }
 
-export async function getOrderByNumber(storage: StorageCollection<Order>, orderNumber: string): Promise<Order | null> {
+export async function getOrderByNumber(
+	storage: StorageCollection<Order>,
+	orderNumber: string,
+): Promise<Order | null> {
 	const result = await storage.query({ where: { orderNumber }, limit: 1 });
 	return result.items[0]?.data ?? null;
 }
 
-export async function listOrders(storage: StorageCollection<Order>, opts: {
-	status?: string;
-	paymentStatus?: string;
-	fulfillmentStatus?: string;
-	customerId?: string;
-	limit?: number;
-	cursor?: string;
-}): Promise<{ items: Order[]; hasMore: boolean; cursor?: string }> {
+export async function listOrders(
+	storage: StorageCollection<Order>,
+	opts: {
+		status?: string;
+		paymentStatus?: string;
+		fulfillmentStatus?: string;
+		customerId?: string;
+		limit?: number;
+		cursor?: string;
+	},
+): Promise<{ items: Order[]; hasMore: boolean; cursor?: string }> {
 	const where: Record<string, unknown> = {};
 	if (opts.status) where.status = opts.status;
 	if (opts.paymentStatus) where.paymentStatus = opts.paymentStatus;
@@ -2260,7 +2336,10 @@ export async function listOrders(storage: StorageCollection<Order>, opts: {
 	};
 }
 
-export async function getOrderItems(storage: StorageCollection<OrderItem>, orderId: string): Promise<OrderItem[]> {
+export async function getOrderItems(
+	storage: StorageCollection<OrderItem>,
+	orderId: string,
+): Promise<OrderItem[]> {
 	const result = await storage.query({ where: { orderId }, limit: 1000 });
 	return result.items.map((item) => item.data);
 }
@@ -2350,6 +2429,7 @@ git commit -m "feat(commerce): add checkout flow and order management"
 ## Task 9: Provider Interfaces
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/providers.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/providers.test.ts`
 
@@ -2373,9 +2453,9 @@ interface ProviderRegistry {
 }
 
 // Provider registry stored in KV
-export async function getProviderRegistry(
-	kv: { get<T>(key: string): Promise<T | null> },
-): Promise<ProviderRegistry> {
+export async function getProviderRegistry(kv: {
+	get<T>(key: string): Promise<T | null>;
+}): Promise<ProviderRegistry> {
 	const registry = await kv.get<ProviderRegistry>("state:providers");
 	return registry ?? { paymentProviders: [], shippingProviders: [], taxProvider: null };
 }
@@ -2445,6 +2525,7 @@ git commit -m "feat(commerce): add provider registry for payment, shipping, and 
 ## Task 10: Wire Routes into sandbox-entry.ts
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
 
 This is the big wiring task. All the business logic modules are done — now wire them as plugin routes.
@@ -2456,14 +2537,66 @@ Update `sandbox-entry.ts` to add all public routes. Each route is thin — parse
 ```typescript
 import { definePlugin } from "emdash";
 import type { PluginContext } from "emdash";
-import { createProduct, getProduct, getProductBySlug, listProducts, updateProduct, deleteProduct } from "./products.js";
-import { createCategory, getCategory, getCategoryBySlug, listCategories, getCategoryTree, updateCategory, deleteCategory } from "./categories.js";
-import { createVariant, listVariantsByProduct, updateVariant, deleteVariant, generateVariantCombinations } from "./variants.js";
-import { createCart, getCart, addCartItem, updateCartItemQuantity, removeCartItem, getCartItems, recalculateCart, CommerceError } from "./cart.js";
-import { createCoupon, getCouponByCode, listCoupons, updateCoupon, validateCoupon, calculateDiscount } from "./coupons.js";
-import { createCustomer, getCustomer, getCustomerByEmail, listCustomers, updateCustomer, incrementOrderStats } from "./customers.js";
+import {
+	createProduct,
+	getProduct,
+	getProductBySlug,
+	listProducts,
+	updateProduct,
+	deleteProduct,
+} from "./products.js";
+import {
+	createCategory,
+	getCategory,
+	getCategoryBySlug,
+	listCategories,
+	getCategoryTree,
+	updateCategory,
+	deleteCategory,
+} from "./categories.js";
+import {
+	createVariant,
+	listVariantsByProduct,
+	updateVariant,
+	deleteVariant,
+	generateVariantCombinations,
+} from "./variants.js";
+import {
+	createCart,
+	getCart,
+	addCartItem,
+	updateCartItemQuantity,
+	removeCartItem,
+	getCartItems,
+	recalculateCart,
+	CommerceError,
+} from "./cart.js";
+import {
+	createCoupon,
+	getCouponByCode,
+	listCoupons,
+	updateCoupon,
+	validateCoupon,
+	calculateDiscount,
+} from "./coupons.js";
+import {
+	createCustomer,
+	getCustomer,
+	getCustomerByEmail,
+	listCustomers,
+	updateCustomer,
+	incrementOrderStats,
+} from "./customers.js";
 import { createOrderFromCart } from "./checkout.js";
-import { getOrder, getOrderByNumber, listOrders, getOrderItems, updateOrderStatus, fulfillOrder, markOrderPaid } from "./orders.js";
+import {
+	getOrder,
+	getOrderByNumber,
+	listOrders,
+	getOrderItems,
+	updateOrderStatus,
+	fulfillOrder,
+	markOrderPaid,
+} from "./orders.js";
 import { recordTransaction, getTransactionsByOrder } from "./transactions.js";
 import { getProviderRegistry, registerProvider, unregisterProvider } from "./providers.js";
 
@@ -2483,7 +2616,18 @@ export default definePlugin({
 
 		"products/list": {
 			public: true,
-			handler: async (routeCtx: { input: { status?: string; productType?: string; featured?: boolean; limit?: number; cursor?: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: {
+					input: {
+						status?: string;
+						productType?: string;
+						featured?: boolean;
+						limit?: number;
+						cursor?: string;
+					};
+				},
+				ctx: PluginContext,
+			) => {
 				return listProducts(ctx.storage.products!, {
 					...routeCtx.input,
 					status: "active", // Public always sees only active
@@ -2529,7 +2673,12 @@ export default definePlugin({
 
 		"cart/add-item": {
 			public: true,
-			handler: async (routeCtx: { input: { cartId: string; productId: string; variantId?: string; quantity: number } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: {
+					input: { cartId: string; productId: string; variantId?: string; quantity: number };
+				},
+				ctx: PluginContext,
+			) => {
 				const item = await addCartItem(
 					ctx.storage.carts!,
 					ctx.storage.cartItems!,
@@ -2545,8 +2694,15 @@ export default definePlugin({
 
 		"cart/update-item": {
 			public: true,
-			handler: async (routeCtx: { input: { itemId: string; cartId: string; quantity: number } }, ctx: PluginContext) => {
-				const item = await updateCartItemQuantity(ctx.storage.cartItems!, routeCtx.input.itemId, routeCtx.input.quantity);
+			handler: async (
+				routeCtx: { input: { itemId: string; cartId: string; quantity: number } },
+				ctx: PluginContext,
+			) => {
+				const item = await updateCartItemQuantity(
+					ctx.storage.cartItems!,
+					routeCtx.input.itemId,
+					routeCtx.input.quantity,
+				);
 				if (!item) throw new CommerceError("CART_NOT_FOUND", "Cart item not found");
 				await recalculateCart(ctx.storage.carts!, ctx.storage.cartItems!, routeCtx.input.cartId);
 				return item;
@@ -2555,7 +2711,10 @@ export default definePlugin({
 
 		"cart/remove-item": {
 			public: true,
-			handler: async (routeCtx: { input: { itemId: string; cartId: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: { input: { itemId: string; cartId: string } },
+				ctx: PluginContext,
+			) => {
 				await removeCartItem(ctx.storage.cartItems!, routeCtx.input.itemId);
 				await recalculateCart(ctx.storage.carts!, ctx.storage.cartItems!, routeCtx.input.cartId);
 				return { success: true };
@@ -2564,7 +2723,18 @@ export default definePlugin({
 
 		"checkout/create": {
 			public: true,
-			handler: async (routeCtx: { input: { cartId: string; email: string; name: string; paymentProvider: string; customerNotes?: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: {
+					input: {
+						cartId: string;
+						email: string;
+						name: string;
+						paymentProvider: string;
+						customerNotes?: string;
+					};
+				},
+				ctx: PluginContext,
+			) => {
 				const order = await createOrderFromCart(
 					{
 						carts: ctx.storage.carts!,
@@ -2585,7 +2755,12 @@ export default definePlugin({
 		// === Admin routes ===
 
 		"admin/products/list": {
-			handler: async (routeCtx: { input: { status?: string; productType?: string; limit?: number; cursor?: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: {
+					input: { status?: string; productType?: string; limit?: number; cursor?: string };
+				},
+				ctx: PluginContext,
+			) => {
 				return listProducts(ctx.storage.products!, routeCtx.input);
 			},
 		},
@@ -2597,7 +2772,10 @@ export default definePlugin({
 		},
 
 		"admin/products/update": {
-			handler: async (routeCtx: { input: { id: string } & Record<string, unknown> }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: { input: { id: string } & Record<string, unknown> },
+				ctx: PluginContext,
+			) => {
 				const { id, ...data } = routeCtx.input;
 				const product = await updateProduct(ctx.storage.products!, id, data);
 				if (!product) throw new CommerceError("PRODUCT_NOT_FOUND", "Product not found");
@@ -2614,7 +2792,12 @@ export default definePlugin({
 		},
 
 		"admin/orders/list": {
-			handler: async (routeCtx: { input: { status?: string; paymentStatus?: string; limit?: number; cursor?: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: {
+					input: { status?: string; paymentStatus?: string; limit?: number; cursor?: string };
+				},
+				ctx: PluginContext,
+			) => {
 				return listOrders(ctx.storage.orders!, routeCtx.input);
 			},
 		},
@@ -2630,27 +2813,45 @@ export default definePlugin({
 		},
 
 		"admin/orders/fulfill": {
-			handler: async (routeCtx: { input: { id: string; trackingNumber?: string; trackingUrl?: string } }, ctx: PluginContext) => {
-				return fulfillOrder(ctx.storage.orders!, ctx.storage.orderItems!, routeCtx.input.id, routeCtx.input);
+			handler: async (
+				routeCtx: { input: { id: string; trackingNumber?: string; trackingUrl?: string } },
+				ctx: PluginContext,
+			) => {
+				return fulfillOrder(
+					ctx.storage.orders!,
+					ctx.storage.orderItems!,
+					routeCtx.input.id,
+					routeCtx.input,
+				);
 			},
 		},
 
 		"admin/orders/status": {
 			handler: async (routeCtx: { input: { id: string; status: string } }, ctx: PluginContext) => {
-				return updateOrderStatus(ctx.storage.orders!, routeCtx.input.id, routeCtx.input.status as Order["status"]);
+				return updateOrderStatus(
+					ctx.storage.orders!,
+					routeCtx.input.id,
+					routeCtx.input.status as Order["status"],
+				);
 			},
 		},
 
 		// Provider registration (called by provider plugins on install)
 		"providers/register": {
-			handler: async (routeCtx: { input: { type: "payment" | "shipping" | "tax"; providerId: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: { input: { type: "payment" | "shipping" | "tax"; providerId: string } },
+				ctx: PluginContext,
+			) => {
 				await registerProvider(ctx.kv, routeCtx.input.type, routeCtx.input.providerId);
 				return { success: true };
 			},
 		},
 
 		"providers/unregister": {
-			handler: async (routeCtx: { input: { type: "payment" | "shipping" | "tax"; providerId: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: { input: { type: "payment" | "shipping" | "tax"; providerId: string } },
+				ctx: PluginContext,
+			) => {
 				await unregisterProvider(ctx.kv, routeCtx.input.type, routeCtx.input.providerId);
 				return { success: true };
 			},
@@ -2664,7 +2865,10 @@ export default definePlugin({
 
 		// Block Kit admin UI handler
 		admin: {
-			handler: async (routeCtx: { input: { type: string; page?: string; action_id?: string; value?: string } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: { input: { type: string; page?: string; action_id?: string; value?: string } },
+				ctx: PluginContext,
+			) => {
 				// Delegate to admin page handlers (Task 11)
 				return { blocks: [{ type: "header", text: "Commerce Dashboard" }] };
 			},
@@ -2691,6 +2895,7 @@ git commit -m "feat(commerce): wire all business logic into plugin routes"
 ## Task 11: Admin Block Kit Pages
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/admin/blocks.ts`
 - Create: `packages/plugins/commerce/src/admin/dashboard.ts`
 - Create: `packages/plugins/commerce/src/admin/products.ts`
@@ -2716,7 +2921,12 @@ export function table(headers: string[], rows: string[][]) {
 	return { type: "table", headers, rows };
 }
 
-export function button(text: string, actionId: string, value?: string, style?: "primary" | "danger") {
+export function button(
+	text: string,
+	actionId: string,
+	value?: string,
+	style?: "primary" | "danger",
+) {
 	return { type: "button", text, action_id: actionId, value, ...(style ? { style } : {}) };
 }
 
@@ -2727,7 +2937,15 @@ export function statsRow(stats: Array<{ label: string; value: string }>) {
 	};
 }
 
-export function form(fields: Array<{ label: string; name: string; type: string; value?: string; options?: Array<{ text: string; value: string }> }>) {
+export function form(
+	fields: Array<{
+		label: string;
+		name: string;
+		type: string;
+		value?: string;
+		options?: Array<{ text: string; value: string }>;
+	}>,
+) {
 	return { type: "form", fields };
 }
 
@@ -2765,7 +2983,9 @@ export async function buildDashboard(ctx: PluginContext) {
 		.filter((o) => o.paymentStatus === "paid")
 		.reduce((sum, o) => sum + (o.total as number), 0);
 
-	const pendingCount = allOrders.filter((o) => o.fulfillmentStatus === "unfulfilled" && o.paymentStatus === "paid").length;
+	const pendingCount = allOrders.filter(
+		(o) => o.fulfillmentStatus === "unfulfilled" && o.paymentStatus === "paid",
+	).length;
 
 	return {
 		blocks: [
@@ -2778,13 +2998,15 @@ export async function buildDashboard(ctx: PluginContext) {
 			header("Recent Orders"),
 			table(
 				["Order", "Customer", "Total", "Status", "Date"],
-				allOrders.slice(0, 10).map((o) => [
-					o.orderNumber as string,
-					o.customerEmail as string,
-					formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
-					o.status as string,
-					formatDate(o.createdAt as string),
-				]),
+				allOrders
+					.slice(0, 10)
+					.map((o) => [
+						o.orderNumber as string,
+						o.customerEmail as string,
+						formatCurrency(o.total as number, (o.currency as string) ?? "USD"),
+						o.status as string,
+						formatDate(o.createdAt as string),
+					]),
 			),
 		],
 	};
@@ -2851,6 +3073,7 @@ git commit -m "feat(commerce): add Block Kit admin UI pages"
 ## Task 12: Scaffold Shipping Basic Plugin
 
 **Files:**
+
 - Create: `packages/plugins/commerce-shipping-basic/package.json`
 - Create: `packages/plugins/commerce-shipping-basic/tsconfig.json`
 - Create: `packages/plugins/commerce-shipping-basic/src/index.ts`
@@ -2868,7 +3091,13 @@ describe("Basic Shipping Rates", () => {
 	it("returns flat rate when configured", () => {
 		const config = {
 			methods: [
-				{ id: "flat", name: "Standard Shipping", type: "flat_rate" as const, price: 5.99, currency: "USD" },
+				{
+					id: "flat",
+					name: "Standard Shipping",
+					type: "flat_rate" as const,
+					price: 5.99,
+					currency: "USD",
+				},
 			],
 		};
 		const cart = { subtotal: 30, currency: "USD", items: [] };
@@ -2882,8 +3111,20 @@ describe("Basic Shipping Rates", () => {
 	it("returns free shipping when cart exceeds threshold", () => {
 		const config = {
 			methods: [
-				{ id: "flat", name: "Standard Shipping", type: "flat_rate" as const, price: 5.99, currency: "USD" },
-				{ id: "free", name: "Free Shipping", type: "free_over" as const, threshold: 50, currency: "USD" },
+				{
+					id: "flat",
+					name: "Standard Shipping",
+					type: "flat_rate" as const,
+					price: 5.99,
+					currency: "USD",
+				},
+				{
+					id: "free",
+					name: "Free Shipping",
+					type: "free_over" as const,
+					threshold: 50,
+					currency: "USD",
+				},
 			],
 		};
 		const cart = { subtotal: 60, currency: "USD", items: [] };
@@ -2897,7 +3138,13 @@ describe("Basic Shipping Rates", () => {
 	it("excludes free shipping when cart is below threshold", () => {
 		const config = {
 			methods: [
-				{ id: "free", name: "Free Shipping", type: "free_over" as const, threshold: 50, currency: "USD" },
+				{
+					id: "free",
+					name: "Free Shipping",
+					type: "free_over" as const,
+					threshold: 50,
+					currency: "USD",
+				},
 			],
 		};
 		const cart = { subtotal: 30, currency: "USD", items: [] };
@@ -2914,24 +3161,24 @@ describe("Basic Shipping Rates", () => {
 
 ```json
 {
-  "name": "@emdash-cms/plugin-commerce-shipping-basic",
-  "version": "0.1.0",
-  "description": "Basic shipping rates for EmDash Commerce — flat rate and free-over-threshold",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./sandbox": "./src/sandbox-entry.ts"
-  },
-  "files": ["src"],
-  "keywords": ["emdash", "cms", "plugin", "commerce", "shipping"],
-  "license": "MIT",
-  "peerDependencies": {
-    "emdash": "workspace:*"
-  },
-  "scripts": {
-    "typecheck": "tsgo --noEmit"
-  }
+	"name": "@emdash-cms/plugin-commerce-shipping-basic",
+	"version": "0.1.0",
+	"description": "Basic shipping rates for EmDash Commerce — flat rate and free-over-threshold",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": ["src"],
+	"keywords": ["emdash", "cms", "plugin", "commerce", "shipping"],
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	}
 }
 ```
 
@@ -3019,8 +3266,22 @@ import type { ShippingConfig } from "./rates.js";
 
 const DEFAULT_CONFIG: ShippingConfig = {
 	methods: [
-		{ id: "standard", name: "Standard Shipping", type: "flat_rate", price: 5.99, currency: "USD", estimatedDays: 5 },
-		{ id: "free", name: "Free Shipping", type: "free_over", threshold: 50, currency: "USD", estimatedDays: 7 },
+		{
+			id: "standard",
+			name: "Standard Shipping",
+			type: "flat_rate",
+			price: 5.99,
+			currency: "USD",
+			estimatedDays: 5,
+		},
+		{
+			id: "free",
+			name: "Free Shipping",
+			type: "free_over",
+			threshold: 50,
+			currency: "USD",
+			estimatedDays: 7,
+		},
 	],
 };
 
@@ -3035,16 +3296,22 @@ export default definePlugin({
 	routes: {
 		rates: {
 			public: true,
-			handler: async (routeCtx: { input: { subtotal: number; currency: string } }, ctx: PluginContext) => {
-				const config = await ctx.kv.get<ShippingConfig>("settings:config") ?? DEFAULT_CONFIG;
+			handler: async (
+				routeCtx: { input: { subtotal: number; currency: string } },
+				ctx: PluginContext,
+			) => {
+				const config = (await ctx.kv.get<ShippingConfig>("settings:config")) ?? DEFAULT_CONFIG;
 				return calculateShippingRates(config, routeCtx.input);
 			},
 		},
 
 		"admin/config": {
-			handler: async (routeCtx: { input: { type: string; config?: ShippingConfig } }, ctx: PluginContext) => {
+			handler: async (
+				routeCtx: { input: { type: string; config?: ShippingConfig } },
+				ctx: PluginContext,
+			) => {
 				if (routeCtx.input.type === "get") {
-					return await ctx.kv.get<ShippingConfig>("settings:config") ?? DEFAULT_CONFIG;
+					return (await ctx.kv.get<ShippingConfig>("settings:config")) ?? DEFAULT_CONFIG;
 				}
 				if (routeCtx.input.type === "set" && routeCtx.input.config) {
 					await ctx.kv.set("settings:config", routeCtx.input.config);
@@ -3073,6 +3340,7 @@ git commit -m "feat(commerce): add basic shipping rates plugin"
 ## Task 13: Scaffold Tax Basic Plugin
 
 **Files:**
+
 - Create: `packages/plugins/commerce-tax-basic/package.json`
 - Create: `packages/plugins/commerce-tax-basic/tsconfig.json`
 - Create: `packages/plugins/commerce-tax-basic/src/index.ts`
@@ -3197,6 +3465,7 @@ git commit -m "feat(commerce): add basic tax calculation plugin"
 ## Task 14: Scaffold Commerce Stripe Plugin
 
 **Files:**
+
 - Create: `packages/plugins/commerce-stripe/package.json`
 - Create: `packages/plugins/commerce-stripe/tsconfig.json`
 - Create: `packages/plugins/commerce-stripe/src/index.ts`
@@ -3209,24 +3478,24 @@ git commit -m "feat(commerce): add basic tax calculation plugin"
 
 ```json
 {
-  "name": "@emdash-cms/plugin-commerce-stripe",
-  "version": "0.1.0",
-  "description": "Stripe payment provider for EmDash Commerce",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./sandbox": "./src/sandbox-entry.ts"
-  },
-  "files": ["src"],
-  "keywords": ["emdash", "cms", "plugin", "commerce", "stripe", "payment"],
-  "license": "MIT",
-  "peerDependencies": {
-    "emdash": "workspace:*"
-  },
-  "scripts": {
-    "typecheck": "tsgo --noEmit"
-  }
+	"name": "@emdash-cms/plugin-commerce-stripe",
+	"version": "0.1.0",
+	"description": "Stripe payment provider for EmDash Commerce",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts"
+	},
+	"files": ["src"],
+	"keywords": ["emdash", "cms", "plugin", "commerce", "stripe", "payment"],
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	}
 }
 ```
 
@@ -3257,7 +3526,7 @@ async function stripeRequest<T>(fetchFn: typeof fetch, opts: StripeRequestOpts):
 	});
 
 	if (!response.ok) {
-		const error = await response.json() as { error: { message: string } };
+		const error = (await response.json()) as { error: { message: string } };
 		throw new Error(`Stripe API error: ${error.error.message}`);
 	}
 
@@ -3400,7 +3669,9 @@ export default definePlugin({
 	routes: {
 		"payment/create": {
 			handler: async (
-				routeCtx: { input: { amount: number; currency: string; orderId: string; returnUrl: string } },
+				routeCtx: {
+					input: { amount: number; currency: string; orderId: string; returnUrl: string };
+				},
 				ctx: PluginContext,
 			) => {
 				const secretKey = await ctx.kv.get<string>("settings:secret:stripe_secret_key");
@@ -3440,10 +3711,7 @@ export default definePlugin({
 
 		webhook: {
 			public: true,
-			handler: async (
-				routeCtx: { input: unknown; request: Request },
-				ctx: PluginContext,
-			) => {
+			handler: async (routeCtx: { input: unknown; request: Request }, ctx: PluginContext) => {
 				const webhookSecret = await ctx.kv.get<string>("settings:secret:stripe_webhook_secret");
 				if (!webhookSecret) throw new Error("Webhook secret not configured");
 
@@ -3469,7 +3737,7 @@ export default definePlugin({
 						const charge = event.data.object;
 						return {
 							event: "refund_succeeded",
-							orderId: ((charge.metadata as Record<string, string>)?.orderId) ?? "",
+							orderId: (charge.metadata as Record<string, string>)?.orderId ?? "",
 							providerTransactionId: charge.id as string,
 							status: "succeeded",
 						};
@@ -3482,7 +3750,14 @@ export default definePlugin({
 
 		"admin/config": {
 			handler: async (
-				routeCtx: { input: { type: string; publishableKey?: string; secretKey?: string; webhookSecret?: string } },
+				routeCtx: {
+					input: {
+						type: string;
+						publishableKey?: string;
+						secretKey?: string;
+						webhookSecret?: string;
+					};
+				},
 				ctx: PluginContext,
 			) => {
 				if (routeCtx.input.type === "get") {
@@ -3540,6 +3815,7 @@ git commit -m "feat(commerce): add Stripe payment provider plugin"
 ## Task 15: Scaffold Storefront Components Plugin
 
 **Files:**
+
 - Create: `packages/plugins/commerce-storefront/package.json`
 - Create: `packages/plugins/commerce-storefront/tsconfig.json`
 - Create: `packages/plugins/commerce-storefront/src/index.ts`
@@ -3556,32 +3832,32 @@ git commit -m "feat(commerce): add Stripe payment provider plugin"
 
 ```json
 {
-  "name": "@emdash-cms/plugin-commerce-storefront",
-  "version": "0.1.0",
-  "description": "Ready-to-use storefront components for EmDash Commerce",
-  "type": "module",
-  "main": "src/index.ts",
-  "exports": {
-    ".": "./src/index.ts",
-    "./sandbox": "./src/sandbox-entry.ts",
-    "./components/ProductList": "./src/components/ProductList.astro",
-    "./components/ProductDetail": "./src/components/ProductDetail.astro",
-    "./components/CartDrawer": "./src/components/CartDrawer.astro",
-    "./components/Checkout": "./src/components/Checkout.astro",
-    "./components/OrderConfirmation": "./src/components/OrderConfirmation.astro",
-    "./components/CategoryNav": "./src/components/CategoryNav.astro",
-    "./styles": "./src/styles/commerce.css"
-  },
-  "files": ["src"],
-  "keywords": ["emdash", "cms", "plugin", "commerce", "storefront", "astro"],
-  "license": "MIT",
-  "peerDependencies": {
-    "emdash": "workspace:*",
-    "astro": "^5.0.0"
-  },
-  "scripts": {
-    "typecheck": "tsgo --noEmit"
-  }
+	"name": "@emdash-cms/plugin-commerce-storefront",
+	"version": "0.1.0",
+	"description": "Ready-to-use storefront components for EmDash Commerce",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sandbox": "./src/sandbox-entry.ts",
+		"./components/ProductList": "./src/components/ProductList.astro",
+		"./components/ProductDetail": "./src/components/ProductDetail.astro",
+		"./components/CartDrawer": "./src/components/CartDrawer.astro",
+		"./components/Checkout": "./src/components/Checkout.astro",
+		"./components/OrderConfirmation": "./src/components/OrderConfirmation.astro",
+		"./components/CategoryNav": "./src/components/CategoryNav.astro",
+		"./styles": "./src/styles/commerce.css"
+	},
+	"files": ["src"],
+	"keywords": ["emdash", "cms", "plugin", "commerce", "storefront", "astro"],
+	"license": "MIT",
+	"peerDependencies": {
+		"emdash": "workspace:*",
+		"astro": "^5.0.0"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit"
+	}
 }
 ```
 
@@ -3766,6 +4042,7 @@ git commit -m "feat(commerce): add storefront Astro components with default them
 ## Task 16: Integration Test — Full Checkout Flow
 
 **Files:**
+
 - Test: `packages/core/tests/integration/plugins/commerce/checkout-flow.test.ts`
 
 - [ ] **Step 1: Write integration test**
@@ -3781,7 +4058,7 @@ describe("Commerce Checkout Flow (Integration)", () => {
 		const product = await createProduct(storages.products, {
 			name: "Widget",
 			slug: "widget",
-			basePrice: 25.00,
+			basePrice: 25.0,
 			status: "active",
 		});
 
@@ -3800,8 +4077,8 @@ describe("Commerce Checkout Flow (Integration)", () => {
 
 		// 4. Recalculate
 		const recalculated = await recalculateCart(storages.carts, storages.cartItems, cart.id);
-		expect(recalculated!.subtotal).toBe(50.00);
-		expect(recalculated!.total).toBe(50.00);
+		expect(recalculated!.subtotal).toBe(50.0);
+		expect(recalculated!.total).toBe(50.0);
 
 		// 5. Checkout
 		const order = await createOrderFromCart(storages, cart.id, {
@@ -3811,7 +4088,7 @@ describe("Commerce Checkout Flow (Integration)", () => {
 		});
 
 		expect(order.status).toBe("pending");
-		expect(order.total).toBe(50.00);
+		expect(order.total).toBe(50.0);
 		expect(order.orderNumber).toMatch(/^ORD-/);
 
 		// 6. Verify order items snapshot
@@ -3840,7 +4117,7 @@ describe("Commerce Checkout Flow (Integration)", () => {
 		const product = await createProduct(storages.products, {
 			name: "Widget",
 			slug: "widget",
-			basePrice: 100.00,
+			basePrice: 100.0,
 			status: "active",
 		});
 
@@ -3852,10 +4129,17 @@ describe("Commerce Checkout Flow (Integration)", () => {
 		});
 
 		const cart = await createCart(storages.carts, { sessionId: "test" });
-		await addCartItem(storages.carts, storages.cartItems, storages.products, storages.variants, cart.id, {
-			productId: product.id,
-			quantity: 1,
-		});
+		await addCartItem(
+			storages.carts,
+			storages.cartItems,
+			storages.products,
+			storages.variants,
+			cart.id,
+			{
+				productId: product.id,
+				quantity: 1,
+			},
+		);
 
 		// Validate and apply coupon
 		const items = await getCartItems(storages.cartItems, cart.id);
@@ -3864,7 +4148,7 @@ describe("Commerce Checkout Flow (Integration)", () => {
 		expect(error).toBeNull();
 
 		const discount = calculateDiscount(coupon, recalculated!, items, []);
-		expect(discount).toBe(10.00);
+		expect(discount).toBe(10.0);
 	});
 });
 ```
@@ -3886,6 +4170,7 @@ git commit -m "test(commerce): add full checkout flow integration test"
 ## Task 17: Register Plugins and pnpm Install
 
 **Files:**
+
 - Modify: `pnpm-workspace.yaml` (if plugins aren't already included)
 - Verify all 5 plugins are installable
 
@@ -3929,6 +4214,7 @@ git commit -m "feat(commerce): complete Phase 1 MVP — 5 plugins, tests passing
 ## Task 18: Demo Integration
 
 **Files:**
+
 - Modify: `demos/simple/astro.config.mjs` (add plugin registration)
 - Create: `demos/simple/src/pages/shop/index.astro` (product listing page)
 - Create: `demos/simple/src/pages/shop/[slug].astro` (product detail page)
@@ -3989,6 +4275,7 @@ git commit -m "feat(commerce): integrate commerce plugins into demo site"
 ## Task 19: Commerce Hook System (hooks.ts)
 
 **Files:**
+
 - Create: `packages/plugins/commerce/src/hooks.ts`
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
 
@@ -4120,7 +4407,11 @@ import { dispatchCommerceEvent } from "./hooks.js";
 await dispatchCommerceEvent(ctx, { type: "commerce:order:created", order });
 
 // In admin/orders/status route, after status update:
-await dispatchCommerceEvent(ctx, { type: "commerce:order:statusChanged", order: updated, previousStatus: order.status });
+await dispatchCommerceEvent(ctx, {
+	type: "commerce:order:statusChanged",
+	order: updated,
+	previousStatus: order.status,
+});
 
 // In admin/products/create and admin/products/update routes:
 await dispatchCommerceEvent(ctx, { type: "commerce:product:afterSave", product });
@@ -4138,6 +4429,7 @@ git commit -m "feat(commerce): add commerce event dispatcher with email notifica
 ## Task 20: Refund Flow
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/orders.ts`
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/refund.test.ts`
@@ -4186,32 +4478,46 @@ describe("Refund Flow", () => {
 		const order = makePaidOrder({ total: 100, paymentStatus: "unpaid" });
 		await orderStorage.put(order.id, order);
 
-		await expect(refundOrder(orderStorage, transactionStorage, order.id, {}))
-			.rejects.toThrow("ORDER_NOT_PAID");
+		await expect(refundOrder(orderStorage, transactionStorage, order.id, {})).rejects.toThrow(
+			"ORDER_NOT_PAID",
+		);
 	});
 
 	it("rejects refund exceeding order total", async () => {
 		const order = makePaidOrder({ total: 100, paymentStatus: "paid" });
 		await orderStorage.put(order.id, order);
 
-		await expect(refundOrder(orderStorage, transactionStorage, order.id, { amount: 150 }))
-			.rejects.toThrow("REFUND_EXCEEDS_TOTAL");
+		await expect(
+			refundOrder(orderStorage, transactionStorage, order.id, { amount: 150 }),
+		).rejects.toThrow("REFUND_EXCEEDS_TOTAL");
 	});
 
 	it("restores inventory on full refund", async () => {
 		const order = makePaidOrder({ total: 100, paymentStatus: "paid" });
 		await orderStorage.put(order.id, order);
 
-		const orderItem = { id: "oi-1", orderId: order.id, productId: "prod-1", quantity: 2, fulfillmentStatus: "unfulfilled" };
+		const orderItem = {
+			id: "oi-1",
+			orderId: order.id,
+			productId: "prod-1",
+			quantity: 2,
+			fulfillmentStatus: "unfulfilled",
+		};
 		await orderItemStorage.put(orderItem.id, orderItem);
 
 		const product = { id: "prod-1", trackInventory: true, inventoryQuantity: 8 };
 		await productStorage.put(product.id, product);
 
-		await refundOrder(orderStorage, transactionStorage, order.id, {}, {
-			orderItems: orderItemStorage,
-			products: productStorage,
-		});
+		await refundOrder(
+			orderStorage,
+			transactionStorage,
+			order.id,
+			{},
+			{
+				orderItems: orderItemStorage,
+				products: productStorage,
+			},
+		);
 
 		const updated = await productStorage.get("prod-1");
 		expect(updated.inventoryQuantity).toBe(10); // 8 + 2 restored
@@ -4236,11 +4542,14 @@ export async function refundOrder(
 ): Promise<Order> {
 	const order = await orderStorage.get(orderId);
 	if (!order) throw new CommerceError("ORDER_NOT_FOUND", "Order not found");
-	if (order.paymentStatus === "unpaid") throw new CommerceError("ORDER_NOT_PAID", "Cannot refund unpaid order");
-	if (order.paymentStatus === "refunded") throw new CommerceError("ORDER_ALREADY_REFUNDED", "Order already fully refunded");
+	if (order.paymentStatus === "unpaid")
+		throw new CommerceError("ORDER_NOT_PAID", "Cannot refund unpaid order");
+	if (order.paymentStatus === "refunded")
+		throw new CommerceError("ORDER_ALREADY_REFUNDED", "Order already fully refunded");
 
 	const refundAmount = input.amount ?? order.total;
-	if (refundAmount > order.total) throw new CommerceError("REFUND_EXCEEDS_TOTAL", "Refund amount exceeds order total");
+	if (refundAmount > order.total)
+		throw new CommerceError("REFUND_EXCEEDS_TOTAL", "Refund amount exceeds order total");
 
 	const isFullRefund = refundAmount >= order.total;
 	const transactionType = isFullRefund ? "refund" : "partial_refund";
@@ -4323,6 +4632,7 @@ git commit -m "feat(commerce): add refund flow with inventory restoration"
 ## Task 21: Cart Merge & Customer Address Book
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/cart.ts`
 - Modify: `packages/plugins/commerce/src/customers.ts`
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
@@ -4397,9 +4707,7 @@ export async function mergeCarts(
 
 	for (const sourceItem of sourceItems) {
 		const matchKey = `${sourceItem.productId}:${sourceItem.variantId ?? ""}`;
-		const existing = targetItems.find(
-			(t) => `${t.productId}:${t.variantId ?? ""}` === matchKey,
-		);
+		const existing = targetItems.find((t) => `${t.productId}:${t.variantId ?? ""}` === matchKey);
 
 		if (existing) {
 			// Larger quantity wins
@@ -4491,6 +4799,7 @@ git commit -m "feat(commerce): add cart merge on sign-in and customer address bo
 ## Task 22: Abandoned Cart Cleanup Cron
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
 
 - [ ] **Step 1: Add cron hook for cart cleanup**
@@ -4556,6 +4865,7 @@ git commit -m "feat(commerce): add cron job for abandoned cart cleanup"
 ## Task 23: Order Confirmation Token Route & Digital Cart Shipping Skip
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
 - Modify: `packages/plugins/commerce/src/checkout.ts`
 
@@ -4631,6 +4941,7 @@ git commit -m "feat(commerce): add order confirmation tokens and digital cart sh
 ## Task 24: Admin Role Authorization
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
 
 - [ ] **Step 1: Add authorization checks to admin routes**
@@ -4693,6 +5004,7 @@ git commit -m "feat(commerce): add role-based authorization to admin routes"
 ## Task 25: Coupon Per-Customer Limit & Edge Cases
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/coupons.ts`
 - Modify: `packages/plugins/commerce/src/cart.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/coupon-edge-cases.test.ts`
@@ -4757,7 +5069,8 @@ export function validateCoupon(
 	const now = new Date();
 	if (coupon.expiresAt && new Date(coupon.expiresAt) < now) return "COUPON_EXPIRED";
 	if (coupon.startsAt && new Date(coupon.startsAt) > now) return "INVALID_COUPON";
-	if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit) return "COUPON_LIMIT_REACHED";
+	if (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit)
+		return "COUPON_LIMIT_REACHED";
 
 	// Per-customer limit check
 	if (
@@ -4768,7 +5081,8 @@ export function validateCoupon(
 		return "COUPON_LIMIT_REACHED";
 	}
 
-	if (coupon.minimumOrderAmount !== null && cart.subtotal < coupon.minimumOrderAmount) return "MINIMUM_NOT_MET";
+	if (coupon.minimumOrderAmount !== null && cart.subtotal < coupon.minimumOrderAmount)
+		return "MINIMUM_NOT_MET";
 
 	if (coupon.appliesTo === "specific_products") {
 		const hasMatch = cartItems.some((item) => coupon.productIds.includes(item.productId));
@@ -4843,6 +5157,7 @@ git commit -m "feat(commerce): add per-customer coupon limits and cart validatio
 ## Task 26: Additional Test Coverage
 
 **Files:**
+
 - Test: `packages/core/tests/unit/plugins/commerce/category-tree.test.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/guest-checkout.test.ts`
 - Test: `packages/core/tests/unit/plugins/commerce/stripe-webhook-flow.test.ts`

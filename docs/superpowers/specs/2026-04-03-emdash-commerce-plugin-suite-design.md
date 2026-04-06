@@ -56,6 +56,7 @@ emdash commerce add digital   # Adds digital products support
 ### Products & Catalog
 
 **`ec_commerce_products`**
+
 - `id`, `slug`, `status` (draft/active/archived)
 - `name`, `description` (Portable Text), `short_description`
 - `product_type` — `physical`, `digital`, `subscription` (extensible by sub-plugins)
@@ -69,6 +70,7 @@ emdash commerce add digital   # Adds digital products support
 - `metadata` (JSON — extensible key-value for sub-plugins)
 
 **`ec_commerce_variants`**
+
 - `id`, `product_id` (FK)
 - `name`, `sku`, `barcode`
 - `price` (null = inherit from product), `compare_at_price`
@@ -78,15 +80,18 @@ emdash commerce add digital   # Adds digital products support
 - `sort_order`, `status`
 
 **`ec_commerce_categories`** (hierarchical)
+
 - `id`, `slug`, `name`, `description`, `image`
 - `parent_id` (FK, self-referencing), `sort_order`
 
 **`ec_commerce_product_categories`** (junction)
+
 - `product_id`, `category_id`
 
 ### Cart & Checkout
 
 **`ec_commerce_carts`**
+
 - `id`, `session_id` (anonymous) or `customer_id` (logged in)
 - `currency`, `subtotal`, `discount_total`, `shipping_total`, `tax_total`, `total`
 - `shipping_address`, `billing_address` (JSON)
@@ -94,6 +99,7 @@ emdash commerce add digital   # Adds digital products support
 - `expires_at`, `created_at`, `updated_at`
 
 **`ec_commerce_cart_items`**
+
 - `id`, `cart_id` (FK), `product_id`, `variant_id` (nullable)
 - `quantity`, `unit_price`, `total_price`
 - `metadata` (JSON)
@@ -101,6 +107,7 @@ emdash commerce add digital   # Adds digital products support
 ### Orders
 
 **`ec_commerce_orders`**
+
 - `id`, `order_number` (human-readable, sequential)
 - `customer_id`, `customer_email`, `customer_name`
 - `status` — `pending`, `paid`, `processing`, `shipped`, `delivered`, `completed`, `cancelled`, `refunded`
@@ -114,12 +121,14 @@ emdash commerce add digital   # Adds digital products support
 - `metadata` (JSON)
 
 **`ec_commerce_order_items`**
+
 - `id`, `order_id` (FK), `product_id`, `variant_id`
 - `product_name`, `variant_name`, `sku` (snapshot at time of order)
 - `quantity`, `unit_price`, `total_price`
 - `fulfillment_status`, `metadata`
 
 **`ec_commerce_transactions`**
+
 - `id`, `order_id` (FK)
 - `type` — `charge`, `refund`, `partial_refund`
 - `amount`, `currency`, `provider`, `provider_transaction_id`
@@ -129,6 +138,7 @@ emdash commerce add digital   # Adds digital products support
 ### Customers
 
 **`ec_commerce_customers`**
+
 - `id`, `user_id` (nullable FK), `email`, `name`
 - `phone`, `default_shipping_address`, `default_billing_address` (JSON)
 - `total_orders`, `total_spent`, `tags` (JSON array)
@@ -137,6 +147,7 @@ emdash commerce add digital   # Adds digital products support
 ### Coupons & Discounts
 
 **`ec_commerce_coupons`**
+
 - `id`, `code` (unique), `description`
 - `type` — `percentage`, `fixed_amount`, `free_shipping`
 - `value`, `currency`
@@ -149,9 +160,11 @@ emdash commerce add digital   # Adds digital products support
 ### Sub-Plugin Tables
 
 **commerce-digital:**
+
 - `ec_commerce_downloads` — `id`, `order_item_id`, `product_id`, `file_url`, `file_name`, `file_size`, `license_key`, `download_limit`, `download_count`, `expires_at`
 
 **commerce-subscriptions:**
+
 - `ec_commerce_subscription_plans` — `id`, `product_id`, `name`, `interval` (daily/weekly/monthly/yearly), `interval_count`, `trial_days`, `billing_cycles` (null = infinite), `price`, `currency`
 - `ec_commerce_subscriptions` — `id`, `customer_id`, `plan_id`, `order_id`, `status` (active/paused/cancelled/expired/past_due), `current_period_start`, `current_period_end`, `trial_end`, `cancelled_at`, `cancel_reason`, `payment_provider`, `provider_subscription_id`
 
@@ -170,6 +183,7 @@ Hooks: `commerce:payment:create`, `commerce:payment:capture`, `commerce:payment:
 Multiple providers can be active simultaneously (customer chooses at checkout).
 
 **Contract:**
+
 - `create(order, returnUrl)` -> `{ redirectUrl?, clientSecret?, providerOrderId }`
 - `capture(providerOrderId)` -> `{ transactionId, status }`
 - `refund(transactionId, amount?)` -> `{ refundId, status }`
@@ -184,6 +198,7 @@ Hook: `commerce:shipping:rates` (non-exclusive, aggregated)
 All active shipping plugins return rates; customer picks one.
 
 **Contract:**
+
 - `rates(cart, shippingAddress)` -> `{ rates: [{ id, name, description, price, currency, estimatedDays }] }`
 - `fulfill(order, items)` -> `{ trackingNumber?, trackingUrl?, status }` (optional)
 
@@ -192,22 +207,23 @@ All active shipping plugins return rates; customer picks one.
 Hook: `commerce:tax:calculate` (exclusive — one tax engine at a time)
 
 **Contract:**
+
 - `calculate(cart, shippingAddress, billingAddress)` -> `{ lineItems: [{ itemId, taxAmount, taxRate, taxName }], totalTax }`
 - `commit(order)` -> `void` (for providers like Avalara)
 
 ### Core Commerce Hooks
 
-| Hook | Type | Purpose |
-|------|------|---------|
-| `commerce:product:afterSave` | broadcast | Sync inventory, update search index |
-| `commerce:cart:beforeAdd` | pipeline | Validate stock, apply restrictions |
-| `commerce:cart:afterUpdate` | broadcast | Recalculate totals, apply coupons |
-| `commerce:checkout:beforeComplete` | pipeline | Final validation, reserve inventory |
-| `commerce:order:created` | broadcast | Send confirmation email, notify fulfillment |
-| `commerce:order:statusChanged` | broadcast | Send status emails, update analytics |
-| `commerce:order:paid` | broadcast | Trigger digital delivery, activate subscription |
-| `commerce:order:refunded` | broadcast | Revoke access, restore inventory |
-| `commerce:inventory:low` | broadcast | Alert admin, trigger reorder |
+| Hook                               | Type      | Purpose                                         |
+| ---------------------------------- | --------- | ----------------------------------------------- |
+| `commerce:product:afterSave`       | broadcast | Sync inventory, update search index             |
+| `commerce:cart:beforeAdd`          | pipeline  | Validate stock, apply restrictions              |
+| `commerce:cart:afterUpdate`        | broadcast | Recalculate totals, apply coupons               |
+| `commerce:checkout:beforeComplete` | pipeline  | Final validation, reserve inventory             |
+| `commerce:order:created`           | broadcast | Send confirmation email, notify fulfillment     |
+| `commerce:order:statusChanged`     | broadcast | Send status emails, update analytics            |
+| `commerce:order:paid`              | broadcast | Trigger digital delivery, activate subscription |
+| `commerce:order:refunded`          | broadcast | Revoke access, restore inventory                |
+| `commerce:inventory:low`           | broadcast | Alert admin, trigger reorder                    |
 
 Pipeline hooks can modify or abort. Broadcast hooks are fire-and-forget.
 
@@ -220,6 +236,7 @@ Pipeline hooks can modify or abort. Broadcast hooks are fire-and-forget.
 **Top bar:** Today's revenue, orders today, pending orders, low-stock alerts
 
 **Sections:**
+
 - Revenue chart (7/30/90 days)
 - Recent orders (last 10, status badges)
 - Top products (by revenue/quantity)
@@ -227,16 +244,16 @@ Pipeline hooks can modify or abort. Broadcast hooks are fire-and-forget.
 
 ### Admin Screens
 
-| Screen | Path | Features |
-|--------|------|----------|
-| Products | `/commerce/products` | List, filters (status, category, type, stock), bulk actions, search |
+| Screen         | Path                     | Features                                                                                                     |
+| -------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Products       | `/commerce/products`     | List, filters (status, category, type, stock), bulk actions, search                                          |
 | Product editor | `/commerce/products/:id` | Name, description (PT), pricing, variants builder, images, inventory, SEO, categories, product type settings |
-| Categories | `/commerce/categories` | Tree view, drag reorder, CRUD |
-| Orders | `/commerce/orders` | List, filters (status, payment, fulfillment, date), search |
-| Order detail | `/commerce/orders/:id` | Timeline, line items, addresses, payment, refund, fulfillment, notes |
-| Customers | `/commerce/customers` | List, search, order history, tags |
-| Coupons | `/commerce/coupons` | List, CRUD, usage stats |
-| Settings | `/commerce/settings` | Tabs: General, Payments, Shipping, Tax, Notifications |
+| Categories     | `/commerce/categories`   | Tree view, drag reorder, CRUD                                                                                |
+| Orders         | `/commerce/orders`       | List, filters (status, payment, fulfillment, date), search                                                   |
+| Order detail   | `/commerce/orders/:id`   | Timeline, line items, addresses, payment, refund, fulfillment, notes                                         |
+| Customers      | `/commerce/customers`    | List, search, order history, tags                                                                            |
+| Coupons        | `/commerce/coupons`      | List, CRUD, usage stats                                                                                      |
+| Settings       | `/commerce/settings`     | Tabs: General, Payments, Shipping, Tax, Notifications                                                        |
 
 ### Product Editor Details
 
@@ -246,16 +263,16 @@ Pipeline hooks can modify or abort. Broadcast hooks are fire-and-forget.
 
 ### Storefront Components (commerce-storefront)
 
-| Component | Purpose |
-|-----------|---------|
-| `<ProductList />` | Grid/list with filters, pagination, sorting |
-| `<ProductDetail />` | Images, description, variant selector, add-to-cart |
-| `<CartDrawer />` | Slide-out cart, quantity controls, coupon input |
-| `<CartPage />` | Full-page cart for mobile |
-| `<Checkout />` | Multi-step: address -> shipping -> payment -> confirmation |
-| `<OrderConfirmation />` | Thank you page with order summary |
-| `<CustomerAccount />` | Order history, addresses, subscriptions |
-| `<CategoryNav />` | Hierarchical category navigation |
+| Component               | Purpose                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| `<ProductList />`       | Grid/list with filters, pagination, sorting                |
+| `<ProductDetail />`     | Images, description, variant selector, add-to-cart         |
+| `<CartDrawer />`        | Slide-out cart, quantity controls, coupon input            |
+| `<CartPage />`          | Full-page cart for mobile                                  |
+| `<Checkout />`          | Multi-step: address -> shipping -> payment -> confirmation |
+| `<OrderConfirmation />` | Thank you page with order summary                          |
+| `<CustomerAccount />`   | Order history, addresses, subscriptions                    |
+| `<CategoryNav />`       | Hierarchical category navigation                           |
 
 Styling: minimal unstyled markup with data attributes and CSS custom properties. Default theme included, easily overridden. No Tailwind dependency.
 
@@ -282,6 +299,7 @@ Cron cleans up carts older than 30 days
 ### Cart Recalculation
 
 On every cart mutation:
+
 1. Line item totals (price x quantity, variant overrides)
 2. Coupon discounts (validate eligibility, apply rules)
 3. Shipping rates (call `commerce:shipping:rates` with cart + address)
@@ -317,36 +335,36 @@ Single coupon per cart (v1). Checks: code exists, active, within date range, und
 
 ### Storefront APIs (public)
 
-| Method | Route | Purpose |
-|--------|-------|---------|
-| GET | `/products` | List (paginated, filterable) |
-| GET | `/products/:slug` | Single product with variants |
-| GET | `/categories` | Category tree |
-| GET | `/categories/:slug/products` | Products in category |
-| POST | `/cart` | Create cart |
-| GET | `/cart/:id` | Get cart with totals |
-| POST | `/cart/:id/items` | Add item |
-| PUT | `/cart/:id/items/:itemId` | Update quantity |
-| DELETE | `/cart/:id/items/:itemId` | Remove item |
-| POST | `/cart/:id/coupon` | Apply coupon |
-| DELETE | `/cart/:id/coupon` | Remove coupon |
-| PUT | `/cart/:id/shipping-address` | Set address |
-| GET | `/cart/:id/shipping-rates` | Get rates |
-| PUT | `/cart/:id/shipping-method` | Select method |
-| POST | `/checkout/:cartId` | Create order + initiate payment |
-| GET | `/orders/:id/confirmation` | Order confirmation (token-auth) |
+| Method | Route                        | Purpose                         |
+| ------ | ---------------------------- | ------------------------------- |
+| GET    | `/products`                  | List (paginated, filterable)    |
+| GET    | `/products/:slug`            | Single product with variants    |
+| GET    | `/categories`                | Category tree                   |
+| GET    | `/categories/:slug/products` | Products in category            |
+| POST   | `/cart`                      | Create cart                     |
+| GET    | `/cart/:id`                  | Get cart with totals            |
+| POST   | `/cart/:id/items`            | Add item                        |
+| PUT    | `/cart/:id/items/:itemId`    | Update quantity                 |
+| DELETE | `/cart/:id/items/:itemId`    | Remove item                     |
+| POST   | `/cart/:id/coupon`           | Apply coupon                    |
+| DELETE | `/cart/:id/coupon`           | Remove coupon                   |
+| PUT    | `/cart/:id/shipping-address` | Set address                     |
+| GET    | `/cart/:id/shipping-rates`   | Get rates                       |
+| PUT    | `/cart/:id/shipping-method`  | Select method                   |
+| POST   | `/checkout/:cartId`          | Create order + initiate payment |
+| GET    | `/orders/:id/confirmation`   | Order confirmation (token-auth) |
 
 ### Customer APIs (authenticated)
 
-| Method | Route | Purpose |
-|--------|-------|---------|
-| GET | `/account/orders` | Order history |
-| GET | `/account/orders/:id` | Order detail |
-| GET/POST/PUT/DELETE | `/account/addresses[/:id]` | Address CRUD |
-| GET | `/account/subscriptions` | Active subscriptions |
-| POST | `/account/subscriptions/:id/pause` | Pause |
-| POST | `/account/subscriptions/:id/cancel` | Cancel |
-| GET | `/account/downloads` | Digital downloads |
+| Method              | Route                               | Purpose              |
+| ------------------- | ----------------------------------- | -------------------- |
+| GET                 | `/account/orders`                   | Order history        |
+| GET                 | `/account/orders/:id`               | Order detail         |
+| GET/POST/PUT/DELETE | `/account/addresses[/:id]`          | Address CRUD         |
+| GET                 | `/account/subscriptions`            | Active subscriptions |
+| POST                | `/account/subscriptions/:id/pause`  | Pause                |
+| POST                | `/account/subscriptions/:id/cancel` | Cancel               |
+| GET                 | `/account/downloads`                | Digital downloads    |
 
 ### Admin APIs (role-gated)
 
@@ -361,31 +379,37 @@ Products, categories, orders, customers, coupons, dashboard, settings, and subsc
 ## 8. Security
 
 ### Payment Security
+
 - Card data never touches our server — provider SDKs handle PCI
 - Webhook signatures validated per-provider
 - Payment secrets in KV as `settings:secret:*`
 - Idempotency keys on payment creation
 
 ### Cart Security
+
 - Session token (signed, httpOnly cookie) — not guessable IDs
 - Rate limiting on cart operations
 - Prices re-validated at checkout (no stale price exploits)
 
 ### Order Integrity
+
 - Inventory check + decrement atomic (single SQL transaction)
 - Totals recalculated server-side at checkout
 - Order items snapshot product data at time of purchase
 
 ### CSRF
+
 - `X-EmDash-Request: 1` header required (EmDash standard)
 - Webhook endpoints exempt (provider signature auth)
 
 ### Authorization
+
 - Storefront: public reads, session-auth for cart/account
 - Admin: EDITOR minimum, ADMIN for settings/refunds
 - Customers access only their own data
 
 ### Edge Cases
+
 - Variant deleted while in cart: recalculation removes, notifies customer
 - Price changed between add and checkout: uses current price, shows diff
 - Payment succeeds but webhook delayed: poll for 30s, webhook is source of truth
@@ -397,6 +421,7 @@ Products, categories, orders, customers, coupons, dashboard, settings, and subsc
 ## 9. Implementation Phases
 
 ### Phase 1: Core Commerce (MVP store)
+
 **Plugins:** `commerce`, `commerce-storefront`, `commerce-shipping-basic`, `commerce-tax-basic`, `commerce-stripe`
 
 Delivers: product catalog, variants, categories, cart, checkout, Stripe payments, orders, fulfillment, refunds, coupons, dashboard, full storefront components.
@@ -404,6 +429,7 @@ Delivers: product catalog, variants, categories, cart, checkout, Stripe payments
 ~40 files, 15-20 tables, 50+ routes.
 
 ### Phase 2: Digital Products
+
 **Plugin:** `commerce-digital`
 
 Adds: digital product type, file upload, license keys, download limits, automatic delivery on payment, customer download page.
@@ -411,6 +437,7 @@ Adds: digital product type, file upload, license keys, download limits, automati
 ~10 files, 1 table, 5 routes.
 
 ### Phase 3: Subscriptions
+
 **Plugin:** `commerce-subscriptions`
 
 Adds: subscription product type, plan configuration, automated renewal via cron, dunning (retry failed payments), customer pause/cancel, admin management.
@@ -418,6 +445,7 @@ Adds: subscription product type, plan configuration, automated renewal via cron,
 ~15 files, 2 tables, 10 routes.
 
 ### Phase 4: Advanced Commerce
+
 **Plugin:** `commerce-paypal` + enhancements
 
 Adds: PayPal provider, weight-based shipping, abandoned cart recovery, CSV import/export, inventory alerts, basic analytics.
@@ -429,10 +457,12 @@ Adds: PayPal provider, weight-based shipping, abandoned cart recovery, CSV impor
 ## 10. Testing Strategy
 
 ### Unit Tests
+
 - Product validation, cart logic, checkout state machine, coupon engine, subscription lifecycle
 - Real in-memory SQLite, fresh DB per test (EmDash standard)
 
 ### Integration Tests
+
 - Full checkout flow (cart -> payment -> order -> hooks)
 - Provider interface contracts (mock providers)
 - Sub-plugin interaction (digital delivery, subscription creation)
@@ -440,6 +470,7 @@ Adds: PayPal provider, weight-based shipping, abandoned cart recovery, CSV impor
 - Cart edge cases
 
 ### E2E Tests (Playwright)
+
 - Storefront journey: browse -> cart -> checkout -> confirmation
 - Admin journey: create product -> view order -> fulfill -> refund
 - Guest vs logged-in checkout
@@ -448,6 +479,7 @@ Adds: PayPal provider, weight-based shipping, abandoned cart recovery, CSV impor
 - Subscription purchase (Phase 3)
 
 ### Provider Testing
+
 - Stripe: test mode keys
 - PayPal: sandbox
 - Shipping/tax: deterministic built-in providers
