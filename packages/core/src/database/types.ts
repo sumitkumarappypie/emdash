@@ -425,6 +425,8 @@ export interface Database {
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
 	_emdash_rate_limits: RateLimitTable;
+	_emdash_customers: CustomersTable;
+	_emdash_customer_sessions: CustomerSessionsTable;
 }
 
 export type MediaRow = {
@@ -498,4 +500,23 @@ export interface RateLimitTable {
 	key: string; // {ip}:{endpoint}
 	window: string; // ISO timestamp truncated to window size
 	count: number;
+}
+
+export interface CustomersTable {
+	id: string;
+	email: string;
+	name: string;
+	password_hash: string;
+	status: string;
+	created_at: string;
+	updated_at: string;
+	last_login_at: string | null;
+}
+
+export interface CustomerSessionsTable {
+	id: string;
+	customer_id: string;
+	token_hash: string;
+	expires_at: string;
+	created_at: string;
 }
