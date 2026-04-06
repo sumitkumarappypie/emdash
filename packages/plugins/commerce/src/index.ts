@@ -25,7 +25,7 @@ export function commercePlugin(): PluginDescriptor {
 		version: "0.1.0",
 		format: "standard",
 		entrypoint: "@emdash-cms/plugin-commerce/sandbox",
-		capabilities: ["read:content", "write:content", "email:send"],
+		capabilities: ["read:content", "write:content", "email:send", "menus:manage"],
 		storage: COMMERCE_STORAGE_CONFIG,
 		adminPages: [{ path: "/", label: "Commerce", icon: "shopping-cart" }],
 		adminWidgets: [

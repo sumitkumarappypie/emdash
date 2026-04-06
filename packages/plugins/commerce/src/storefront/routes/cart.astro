@@ -1,0 +1,298 @@
+---
+// @ts-ignore virtual module
+import { Layout } from "virtual:commerce-storefront/config";
+
+export const prerender = false;
+
+const emdash = (Astro.locals as any).emdash;
+if (!emdash?.handlePluginApiRoute) return Astro.redirect("/404");
+
+const statusResult = await emdash.handlePluginApiRoute(
+	"commerce", "POST", "/storefront/status",
+	new Request("https://internal/status", { method: "POST", body: "{}" }),
+);
+if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect("/404");
+---
+
+<Layout title="Shopping Cart">
+	<main class="cart-page">
+		<h1>Shopping Cart</h1>
+		<div id="cart-loading" class="cart-loading">Loading cart...</div>
+		<div id="cart-empty" class="cart-empty" style="display:none">
+			<p>Your cart is empty.</p>
+			<a href="/shop" class="continue-shopping-btn">Continue Shopping</a>
+		</div>
+		<div id="cart-content" style="display:none">
+			<table class="cart-table">
+				<thead>
+					<tr>
+						<th>Product</th>
+						<th>Price</th>
+						<th>Qty</th>
+						<th>Total</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody id="cart-items"></tbody>
+			</table>
+			<div class="cart-footer">
+				<div class="cart-summary">
+					<div class="cart-total">
+						<span>Subtotal:</span>
+						<strong id="cart-subtotal">$0.00</strong>
+					</div>
+					<p class="cart-note">Shipping and taxes calculated at checkout.</p>
+				</div>
+				<div class="cart-actions">
+					<a href="/shop" class="continue-shopping-link">Continue Shopping</a>
+					<button id="checkout-btn" class="checkout-btn">Proceed to Checkout</button>
+				</div>
+			</div>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	const API_BASE = "/_emdash/api/plugins/commerce";
+	const loadingEl = document.getElementById("cart-loading")!;
+	const emptyEl = document.getElementById("cart-empty")!;
+	const contentEl = document.getElementById("cart-content")!;
+	const itemsEl = document.getElementById("cart-items")!;
+	const subtotalEl = document.getElementById("cart-subtotal")!;
+
+	async function loadCart() {
+		const cartId = localStorage.getItem("commerce_cart_id");
+		if (!cartId) { showEmpty(); return; }
+		const res = await fetch(`${API_BASE}/cart/get`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ cartId }),
+		});
+		const body = await res.json();
+		const cart = body?.data;
+		if (!cart || !cart.items || cart.items.length === 0) { showEmpty(); return; }
+		renderCart(cart);
+	}
+
+	function showEmpty() {
+		loadingEl.style.display = "none";
+		emptyEl.style.display = "block";
+		contentEl.style.display = "none";
+	}
+
+	function renderCart(cart: { items: Array<Record<string, unknown>> }) {
+		loadingEl.style.display = "none";
+		emptyEl.style.display = "none";
+		contentEl.style.display = "block";
+		itemsEl.replaceChildren();
+
+		let subtotal = 0;
+		for (const item of cart.items) {
+			const price = Number(item.unitPrice ?? item.price ?? 0);
+			const qty = Number(item.quantity ?? 1);
+			const lineTotal = price * qty;
+			subtotal += lineTotal;
+
+			const tr = document.createElement("tr");
+
+			const tdName = document.createElement("td");
+			tdName.className = "cart-item-name";
+			tdName.textContent = (item.productName as string) || (item.productId as string) || "Product";
+			tr.appendChild(tdName);
+
+			const tdPrice = document.createElement("td");
+			tdPrice.textContent = `$${price.toFixed(2)}`;
+			tr.appendChild(tdPrice);
+
+			const tdQty = document.createElement("td");
+			const qtyInput = document.createElement("input");
+			qtyInput.type = "number";
+			qtyInput.className = "cart-qty-input";
+			qtyInput.value = String(qty);
+			qtyInput.min = "1";
+			qtyInput.max = "99";
+			qtyInput.dataset.itemId = item.id as string;
+			qtyInput.addEventListener("change", handleQtyChange);
+			tdQty.appendChild(qtyInput);
+			tr.appendChild(tdQty);
+
+			const tdTotal = document.createElement("td");
+			tdTotal.className = "cart-item-total";
+			tdTotal.textContent = `$${lineTotal.toFixed(2)}`;
+			tr.appendChild(tdTotal);
+
+			const tdRemove = document.createElement("td");
+			const removeBtn = document.createElement("button");
+			removeBtn.className = "cart-remove-btn";
+			removeBtn.textContent = "Remove";
+			removeBtn.dataset.itemId = item.id as string;
+			removeBtn.addEventListener("click", handleRemove);
+			tdRemove.appendChild(removeBtn);
+			tr.appendChild(tdRemove);
+
+			itemsEl.appendChild(tr);
+		}
+		subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+	}
+
+	async function handleQtyChange(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const itemId = input.dataset.itemId;
+		const quantity = parseInt(input.value, 10);
+		if (!itemId || quantity < 1) return;
+		await fetch(`${API_BASE}/cart/update-item`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ itemId, quantity }),
+		});
+		await loadCart();
+	}
+
+	async function handleRemove(e: Event) {
+		const btn = e.currentTarget as HTMLButtonElement;
+		const itemId = btn.dataset.itemId;
+		if (!itemId) return;
+		await fetch(`${API_BASE}/cart/remove-item`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ itemId }),
+		});
+		await loadCart();
+	}
+
+	document.getElementById("checkout-btn")?.addEventListener("click", () => {
+		window.location.href = "/shop/checkout";
+	});
+
+	loadCart();
+</script>
+
+<style is:global>
+	.cart-page {
+		max-width: var(--wide-width, 1200px);
+		margin: 0 auto;
+		padding: 2rem var(--spacing-6, 1.5rem) 4rem;
+	}
+
+	.cart-page h1 { font-size: 2rem; font-weight: 700; margin-bottom: 2rem; letter-spacing: -0.02em; }
+
+	.cart-loading, .cart-empty { text-align: center; padding: 4rem 0; color: var(--color-muted, #888); }
+
+	.continue-shopping-btn {
+		display: inline-block;
+		margin-top: 1.5rem;
+		padding: 0.75rem 2rem;
+		background: var(--color-accent, #0066cc);
+		color: white;
+		text-decoration: none;
+		border-radius: 8px;
+		font-weight: 600;
+		transition: background 0.2s;
+	}
+
+	.continue-shopping-btn:hover { background: var(--color-accent-hover, #0052a3); }
+
+	.cart-table {
+		width: 100%;
+		border-collapse: collapse;
+		margin-bottom: 2rem;
+	}
+
+	.cart-table th {
+		text-align: left;
+		padding: 0.875rem 1rem;
+		border-bottom: 2px solid var(--color-border, #e5e5e5);
+		font-size: 0.8125rem;
+		color: var(--color-muted, #888);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.cart-table td {
+		padding: 1.125rem 1rem;
+		border-bottom: 1px solid var(--color-border, #e5e5e5);
+		vertical-align: middle;
+	}
+
+	.cart-item-name { font-weight: 600; }
+
+	.cart-qty-input {
+		width: 64px;
+		padding: 0.5rem;
+		border: 1px solid var(--color-border, #e5e5e5);
+		border-radius: 8px;
+		font: inherit;
+		text-align: center;
+		transition: border-color 0.15s;
+	}
+
+	.cart-qty-input:focus {
+		outline: none;
+		border-color: var(--color-accent, #0066cc);
+		box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+	}
+
+	.cart-remove-btn {
+		background: none;
+		border: none;
+		color: #dc2626;
+		cursor: pointer;
+		font: inherit;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		transition: opacity 0.15s;
+	}
+
+	.cart-remove-btn:hover { opacity: 0.7; }
+
+	.cart-footer {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 2rem;
+		padding-top: 1.5rem;
+		border-top: 2px solid var(--color-border, #e5e5e5);
+	}
+
+	.cart-total {
+		font-size: 1.375rem;
+		display: flex;
+		gap: 0.5rem;
+		align-items: baseline;
+	}
+
+	.cart-note { font-size: 0.8125rem; color: var(--color-muted, #888); margin-top: 0.5rem; }
+
+	.cart-actions { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-end; }
+
+	.continue-shopping-link {
+		font-size: 0.875rem;
+		color: var(--color-accent, #0066cc);
+		text-decoration: none;
+	}
+
+	.continue-shopping-link:hover { text-decoration: underline; }
+
+	.checkout-btn {
+		padding: 0.875rem 3rem;
+		font: inherit;
+		font-size: 1rem;
+		font-weight: 600;
+		background: var(--color-accent, #0066cc);
+		color: white;
+		border: none;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: background 0.2s, transform 0.1s;
+	}
+
+	.checkout-btn:hover { background: var(--color-accent-hover, #0052a3); }
+	.checkout-btn:active { transform: scale(0.98); }
+
+	@media (max-width: 640px) {
+		.cart-footer { flex-direction: column; }
+		.cart-actions { align-items: stretch; width: 100%; }
+		.checkout-btn { text-align: center; }
+	}
+</style>

@@ -6,7 +6,8 @@
 	"main": "src/index.ts",
 	"exports": {
 		".": "./src/index.ts",
-		"./sandbox": "./src/sandbox-entry.ts"
+		"./sandbox": "./src/sandbox-entry.ts",
+		"./storefront": "./src/storefront/integration.ts"
 	},
 	"files": ["src"],
 	"keywords": ["emdash", "cms", "plugin", "ecommerce", "shop", "cart", "checkout"],
@@ -16,7 +17,8 @@
 		"zod": "^4.3.5"
 	},
 	"peerDependencies": {
-		"emdash": "workspace:*"
+		"emdash": "workspace:*",
+		"astro": "^5.0.0 || ^6.0.0"
 	},
 	"scripts": {
 		"typecheck": "tsgo --noEmit"

@@ -29,6 +29,12 @@ import {
 } from "./categories.js";
 import { createOrderFromCart } from "./checkout.js";
 import { createCoupon, listCoupons, updateCoupon } from "./coupons.js";
+import {
+	registerCustomer,
+	loginCustomer,
+	validateSession,
+	destroySession,
+} from "./customer-auth.js";
 import { getCustomer, listCustomers } from "./customers.js";
 import { dispatchCommerceEvent } from "./hooks.js";
 import {
@@ -50,12 +56,6 @@ import {
 import { registerProvider, unregisterProvider, getProviderRegistry } from "./providers.js";
 import { getTransactionsByOrder } from "./transactions.js";
 import { createVariant, listVariantsByProduct, updateVariant, deleteVariant } from "./variants.js";
-import {
-	registerCustomer,
-	loginCustomer,
-	validateSession,
-	destroySession,
-} from "./customer-auth.js";
 
 // Standard format: route handlers receive two args (routeCtx, pluginCtx)
 // via adapt-sandbox-entry.ts which splits the RouteContext.
@@ -312,7 +312,11 @@ export default definePlugin({
 					routeCtx.input as { email: string; password: string; name: string },
 				);
 				return {
-					customer: { id: result.customer.id, email: result.customer.email, name: result.customer.name },
+					customer: {
+						id: result.customer.id,
+						email: result.customer.email,
+						name: result.customer.name,
+					},
 					token: result.token,
 				};
 			},
@@ -327,7 +331,11 @@ export default definePlugin({
 					routeCtx.input as { email: string; password: string },
 				);
 				return {
-					customer: { id: result.customer.id, email: result.customer.email, name: result.customer.name },
+					customer: {
+						id: result.customer.id,
+						email: result.customer.email,
+						name: result.customer.name,
+					},
 					token: result.token,
 				};
 			},

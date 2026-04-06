@@ -22,7 +22,6 @@
     "@emdash-cms/plugin-color": "workspace:*",
     "@emdash-cms/plugin-commerce": "workspace:*",
     "@emdash-cms/plugin-commerce-shipping-basic": "workspace:*",
-    "@emdash-cms/plugin-commerce-storefront": "workspace:*",
     "@emdash-cms/plugin-commerce-stripe": "workspace:*",
     "@emdash-cms/plugin-commerce-tax-basic": "workspace:*",
     "astro": "catalog:",

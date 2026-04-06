@@ -1,0 +1,99 @@
+---
+/**
+ * Default shop layout. Sites can override by providing their own layout
+ * via the `layout` option in the storefront integration config.
+ */
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>{title}</title>
+	</head>
+	<body>
+		<header class="shop-header">
+			<nav class="shop-nav">
+				<a href="/" class="shop-nav-home">Home</a>
+				<a href="/shop" class="shop-nav-link">Shop</a>
+				<a href="/shop/cart" class="shop-nav-cart">Cart</a>
+			</nav>
+		</header>
+		<slot />
+		<footer class="shop-footer">
+			<p>Powered by <a href="https://emdashcms.com">EmDash</a></p>
+		</footer>
+	</body>
+</html>
+
+<style is:global>
+	:root {
+		--shop-accent: var(--color-accent, #0066cc);
+		--shop-accent-hover: var(--color-accent-hover, #0052a3);
+		--shop-bg: var(--color-bg, #ffffff);
+		--shop-text: var(--color-text, #1a1a1a);
+		--shop-text-secondary: var(--color-text-secondary, #525252);
+		--shop-muted: var(--color-muted, #888);
+		--shop-border: var(--color-border, #e5e5e5);
+		--shop-surface: var(--color-surface, #f7f7f7);
+		--shop-radius: var(--radius, 4px);
+		--shop-radius-lg: var(--radius-lg, 8px);
+		--shop-font: var(--font-sans, system-ui, sans-serif);
+		--shop-max-width: var(--wide-width, 1200px);
+	}
+
+	body {
+		font-family: var(--shop-font);
+		color: var(--shop-text);
+		background: var(--shop-bg);
+		margin: 0;
+		line-height: 1.6;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	.shop-header {
+		border-bottom: 1px solid var(--shop-border);
+	}
+
+	.shop-nav {
+		max-width: var(--shop-max-width);
+		margin: 0 auto;
+		padding: 1rem;
+		display: flex;
+		gap: 1.5rem;
+		align-items: center;
+	}
+
+	.shop-nav a {
+		color: var(--shop-text);
+		text-decoration: none;
+		font-weight: 500;
+	}
+
+	.shop-nav a:hover {
+		color: var(--shop-accent);
+	}
+
+	.shop-nav-home {
+		font-weight: 700;
+		margin-right: auto;
+	}
+
+	.shop-footer {
+		border-top: 1px solid var(--shop-border);
+		text-align: center;
+		padding: 2rem 1rem;
+		color: var(--shop-muted);
+		font-size: 0.875rem;
+	}
+
+	.shop-footer a {
+		color: var(--shop-text-secondary);
+	}
+</style>

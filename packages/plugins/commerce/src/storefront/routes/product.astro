@@ -1,0 +1,199 @@
+---
+// @ts-ignore virtual module
+import { Layout } from "virtual:commerce-storefront/config";
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+const emdash = (Astro.locals as any).emdash;
+if (!emdash?.handlePluginApiRoute) return Astro.redirect("/404");
+
+const statusResult = await emdash.handlePluginApiRoute(
+	"commerce", "POST", "/storefront/status",
+	new Request("https://internal/status", { method: "POST", body: "{}" }),
+);
+if (!statusResult?.success || !statusResult.data?.enabled) return Astro.redirect("/404");
+
+const productResult = await emdash.handlePluginApiRoute(
+	"commerce", "POST", "/products/get",
+	new Request("https://internal/products/get", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ slug }),
+	}),
+);
+if (!productResult?.success || !productResult.data) return Astro.redirect("/404");
+const product = productResult.data as Record<string, any>;
+const variants = product.variants ?? [];
+---
+
+<Layout title={product.name}>
+	<main class="product-page">
+		<nav class="breadcrumb">
+			<a href="/shop">Shop</a><span>/</span><span>{product.name}</span>
+		</nav>
+		<div class="product-layout">
+			<div class="product-images">
+				{product.images?.length > 0 ? (
+					<img src={product.images[0].url} alt={product.images[0].alt || product.name} class="product-main-image" />
+				) : (
+					<div class="product-main-image product-placeholder">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+					</div>
+				)}
+			</div>
+			<div class="product-info">
+				<h1 class="product-title">{product.name}</h1>
+				<div class="product-price">
+					{product.compareAtPrice ? (
+						<><span class="price-compare">${Number(product.compareAtPrice).toFixed(2)}</span><span class="price-current">${Number(product.basePrice).toFixed(2)}</span></>
+					) : (
+						<span class="price-current">${Number(product.basePrice).toFixed(2)}</span>
+					)}
+				</div>
+				{product.shortDescription && <p class="product-short-desc">{product.shortDescription}</p>}
+				{product.sku && <p class="product-meta">SKU: {product.sku}</p>}
+				{variants.length > 0 && (
+					<div class="product-variants">
+						<label for="variant-select">Options:</label>
+						<select id="variant-select" class="variant-select">
+							{variants.map((v: any) => (
+								<option value={v.id}>{v.name}{v.price !== null ? ` — $${Number(v.price).toFixed(2)}` : ""}</option>
+							))}
+						</select>
+					</div>
+				)}
+				<div class="product-actions">
+					<div class="quantity-input">
+						<label for="quantity">Qty:</label>
+						<input type="number" id="quantity" value="1" min="1" max="99" />
+					</div>
+					<button class="add-to-cart-btn" data-product-id={product.id} data-price={product.basePrice}>Add to Cart</button>
+				</div>
+				{product.trackInventory && (
+					<p class="stock-info">{product.inventoryQuantity > 0 ? `${product.inventoryQuantity} in stock` : "Out of stock"}</p>
+				)}
+				{product.description && (
+					<div class="product-description"><h2>Description</h2><p>{product.description}</p></div>
+				)}
+			</div>
+		</div>
+	</main>
+</Layout>
+
+<script>
+	const API_BASE = "/_emdash/api/plugins/commerce";
+
+	async function getOrCreateCart(): Promise<string> {
+		const existing = localStorage.getItem("commerce_cart_id");
+		if (existing) {
+			const res = await fetch(`${API_BASE}/cart/get`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ cartId: existing }),
+			});
+			const body = await res.json();
+			if (body?.data?.id) return existing;
+		}
+		const res = await fetch(`${API_BASE}/cart/create`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({}),
+		});
+		const body = await res.json();
+		const cartId = body?.data?.id;
+		if (cartId) localStorage.setItem("commerce_cart_id", cartId);
+		return cartId;
+	}
+
+	function showToast(message: string) {
+		const existing = document.querySelector(".cart-toast");
+		if (existing) existing.remove();
+		const toast = document.createElement("div");
+		toast.className = "cart-toast";
+		const span = document.createElement("span");
+		span.textContent = message;
+		toast.appendChild(span);
+		const link = document.createElement("a");
+		link.href = "/shop/cart";
+		link.textContent = "View Cart";
+		toast.appendChild(link);
+		document.body.appendChild(toast);
+		setTimeout(() => toast.remove(), 2500);
+	}
+
+	const btn = document.querySelector<HTMLButtonElement>(".add-to-cart-btn");
+	if (btn) {
+		btn.addEventListener("click", async () => {
+			btn.disabled = true;
+			btn.textContent = "Adding...";
+			try {
+				const cartId = await getOrCreateCart();
+				const productId = btn.dataset.productId;
+				const quantity = parseInt(
+					(document.getElementById("quantity") as HTMLInputElement)?.value || "1",
+					10,
+				);
+				const variantSelect = document.getElementById("variant-select") as HTMLSelectElement | null;
+				const variantId = variantSelect?.value || null;
+
+				const res = await fetch(`${API_BASE}/cart/add-item`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ cartId, productId, variantId, quantity }),
+				});
+				const body = await res.json();
+				if (body?.data) {
+					showToast("Added to cart!");
+				} else {
+					showToast("Could not add to cart");
+				}
+			} catch {
+				showToast("Error adding to cart");
+			} finally {
+				btn.disabled = false;
+				btn.textContent = "Add to Cart";
+			}
+		});
+	}
+</script>
+
+<style is:global>
+	.product-page { max-width: var(--wide-width, 1200px); margin: 0 auto; padding: 2rem var(--spacing-6, 1.5rem) 4rem; }
+	.breadcrumb { font-size: 0.875rem; color: var(--color-muted, #888); margin-bottom: 2rem; display: flex; gap: 0.5rem; align-items: center; }
+	.breadcrumb a { color: var(--color-accent, #0066cc); text-decoration: none; }
+	.breadcrumb a:hover { text-decoration: underline; }
+	.product-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+	.product-images { position: sticky; top: 5rem; }
+	.product-main-image { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: var(--color-surface, #f7f7f7); border: 1px solid var(--color-border, #e5e5e5); }
+	.product-placeholder { display: flex; align-items: center; justify-content: center; color: var(--color-border, #ddd); }
+	.product-placeholder svg { width: 80px; height: 80px; }
+	.product-title { font-size: 2rem; font-weight: 700; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
+	.product-price { font-size: 1.75rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: baseline; gap: 0.75rem; }
+	.price-compare { text-decoration: line-through; color: var(--color-muted, #999); font-size: 1.125rem; font-weight: 400; }
+	.product-short-desc { color: var(--color-text-secondary, #525252); margin-bottom: 1.25rem; line-height: 1.7; font-size: 1.05rem; }
+	.product-meta { font-size: 0.8125rem; color: var(--color-muted, #888); margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+	.product-variants { margin-bottom: 1.5rem; }
+	.product-variants label { display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.5rem; }
+	.variant-select { width: 100%; padding: 0.625rem 0.75rem; border: 1px solid var(--color-border, #e5e5e5); border-radius: 8px; font: inherit; background: var(--color-bg, #fff); }
+	.variant-select:focus { outline: none; border-color: var(--color-accent, #0066cc); box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1); }
+	.product-actions { display: flex; gap: 0.75rem; align-items: stretch; margin-bottom: 1.25rem; }
+	.quantity-input { display: flex; flex-direction: column; }
+	.quantity-input label { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.375rem; }
+	.quantity-input input { width: 72px; padding: 0.625rem 0.5rem; border: 1px solid var(--color-border, #e5e5e5); border-radius: 8px; font: inherit; text-align: center; }
+	.quantity-input input:focus { outline: none; border-color: var(--color-accent, #0066cc); box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1); }
+	.add-to-cart-btn { flex: 1; padding: 0.75rem 2rem; font: inherit; font-size: 1rem; font-weight: 600; background: var(--color-accent, #0066cc); color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s, transform 0.1s; align-self: flex-end; }
+	.add-to-cart-btn:hover { background: var(--color-accent-hover, #0052a3); }
+	.add-to-cart-btn:active { transform: scale(0.98); }
+	.add-to-cart-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+	.stock-info { font-size: 0.875rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.375rem; }
+	.stock-info::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #059669; }
+	.product-description { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid var(--color-border, #e5e5e5); }
+	.product-description h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.75rem; }
+	.product-description p { line-height: 1.75; color: var(--color-text-secondary, #525252); }
+	.cart-toast { position: fixed; bottom: 2rem; right: 2rem; background: #059669; color: white; padding: 0.875rem 1.5rem; border-radius: 10px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); z-index: 1000; animation: toast-in 0.3s ease, toast-out 0.3s ease 2.2s forwards; }
+	.cart-toast a { color: white; text-decoration: underline; margin-left: 0.5rem; }
+	@keyframes toast-in { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
+	@keyframes toast-out { from { opacity: 1; } to { opacity: 0; transform: translateY(1rem); } }
+	@media (max-width: 768px) { .product-layout { grid-template-columns: 1fr; gap: 1.5rem; } .product-images { position: static; } .product-title { font-size: 1.5rem; } .product-price { font-size: 1.375rem; } }
+</style>
