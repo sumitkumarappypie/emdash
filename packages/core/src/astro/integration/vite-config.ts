@@ -5,7 +5,7 @@
  * Vite-specific configuration for EmDash.
  */
 
-import { createRequire } from "node:module";
+import { builtinModules, createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -217,6 +217,9 @@ const NODE_NATIVE_EXTERNALS = [
 	"pg",
 ];
 
+/** Bare Node builtin specifiers (without `node:` prefix). */
+const BARE_NODE_BUILTINS = new Set(builtinModules.filter((m) => !m.startsWith("node:")));
+
 /**
  * Detect whether the Cloudflare adapter is being used.
  */
@@ -257,7 +260,32 @@ export function createViteConfig(
 			],
 		},
 		// eslint-disable-next-line typescript-eslint(no-unsafe-type-assertion) -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
-		plugins: [createVirtualModulesPlugin(options)] as NonNullable<AstroConfig["vite"]>["plugins"],
+		plugins: [
+			createVirtualModulesPlugin(options),
+			// On Cloudflare, the commonjs plugin fails to resolve bare Node builtins
+			// (e.g. "fs", "path") used by dependencies like postcss. The
+			// @cloudflare/vite-plugin handles `node:` prefixed imports via unenv
+			// polyfills, but the commonjs transform runs first on bare specifiers.
+			// This plugin redirects bare builtins to their `node:` prefixed form and
+			// stubs native addons that cannot run in workerd.
+			...(cloudflare
+				? [
+						{
+							name: "emdash:cloudflare-compat",
+							enforce: "pre" as const,
+							resolveId(id: string) {
+								if (BARE_NODE_BUILTINS.has(id)) return { id: `node:${id}`, external: true };
+								for (const mod of NODE_NATIVE_EXTERNALS) {
+									if (id === mod || id.includes(`/${mod}/`)) return `\0stub:${mod}`;
+								}
+							},
+							load(id: string) {
+								if (id.startsWith("\0stub:")) return "export default {}";
+							},
+						},
+					]
+				: []),
+		] as NonNullable<AstroConfig["vite"]>["plugins"],
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
 		// On Cloudflare: skip — the adapter handles externalization, and setting

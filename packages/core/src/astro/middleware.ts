@@ -178,6 +178,12 @@ function setBaselineSecurityHeaders(response: Response): void {
 /** Public routes that require the runtime (sitemap, robots.txt, etc.) */
 const PUBLIC_RUNTIME_ROUTES = new Set(["/sitemap.xml", "/robots.txt"]);
 
+/**
+ * Route prefixes registered via `runtimeRoutes` config.
+ * Populated on first middleware invocation from the virtual config.
+ */
+let runtimeRoutePrefixes: string[] | null = null;
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
@@ -186,6 +192,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// (logged-in editors need the runtime for toolbar/visual editing on public pages)
 	const isEmDashRoute = url.pathname.startsWith("/_emdash");
 	const isPublicRuntimeRoute = PUBLIC_RUNTIME_ROUTES.has(url.pathname);
+
+	// Lazily populate runtime route prefixes from config
+	if (runtimeRoutePrefixes === null) {
+		const config = getConfig();
+		runtimeRoutePrefixes =
+			((config as Record<string, unknown> | null)?.runtimeRoutes as string[]) ?? [];
+	}
+	const isRuntimeRoute = runtimeRoutePrefixes.some((prefix) => url.pathname.startsWith(prefix));
 
 	// Check for edit mode cookie - editors viewing public pages need the runtime
 	// so auth middleware can verify their session for visual editing
@@ -197,7 +211,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	// available to getDb() and the runtime's db getter via the correct ALS instance.
 	const playgroundDb = locals.__playgroundDb;
 
-	if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
+	if (
+		!isEmDashRoute &&
+		!isPublicRuntimeRoute &&
+		!isRuntimeRoute &&
+		!hasEditCookie &&
+		!hasPreviewToken
+	) {
 		const sessionUser = await context.session?.get("user");
 		if (!sessionUser && !playgroundDb) {
 			// On a fresh deployment the database may be completely empty.

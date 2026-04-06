@@ -292,6 +292,23 @@ export interface EmDashConfig {
 	};
 
 	/**
+	 * Route prefixes that require the EmDash runtime on every request,
+	 * even for anonymous visitors.
+	 *
+	 * By default, the runtime only initializes for `/_emdash` routes and
+	 * authenticated users. Storefront or other plugin-injected pages that
+	 * need `Astro.locals.emdash` should register their prefix here.
+	 *
+	 * @example
+	 * ```ts
+	 * emdash({
+	 *   runtimeRoutes: ["/shop"],
+	 * })
+	 * ```
+	 */
+	runtimeRoutes?: string[];
+
+	/**
 	 * Media providers for browsing and uploading media
 	 *
 	 * The local media provider (using storage adapter) is available by default.
