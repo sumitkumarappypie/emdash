@@ -359,9 +359,170 @@ plugins: [
 
 All versions pinned to Expo SDK 52 compatible. `expo-dev-client` included from day one.
 
+### Tamagui (UI Component Library)
+
+```
+tamagui: ^1.120.0
+@tamagui/config: ^1.120.0
+@tamagui/font-inter: ^1.120.0
+```
+
+Tamagui v1 stable — verified with Expo SDK 52. Provides themed components (Button, Card, Input, Sheet, XStack, YStack, etc.) and a token-based theme system that maps directly to our `/app/config` theme colors.
+
 ---
 
-## 11. Error Handling
+## 11. Tamagui Theme Integration
+
+### How `/app/config` theme maps to Tamagui tokens
+
+The shell's ThemeProvider creates a Tamagui theme from the server's `ThemeColors`:
+
+```typescript
+// Map AppConfig theme → Tamagui theme tokens
+function buildTamaguiTheme(colors: ThemeColors) {
+  return {
+    background: colors.background,
+    backgroundHover: colors.surface,
+    backgroundPress: colors.surface,
+    color: colors.text,
+    colorHover: colors.text,
+    colorPress: colors.text,
+    borderColor: colors.surface,
+    placeholderColor: colors.textMuted,
+    // Semantic tokens
+    primary: colors.primary,
+    secondary: colors.secondary,
+    surface: colors.surface,
+    textMuted: colors.textMuted,
+    error: colors.error,
+    success: colors.success,
+  };
+}
+```
+
+Each white-label customer gets different colors from their EmDash deployment's `/app/config`, and the entire UI automatically re-themes.
+
+### Component usage in screens
+
+Plugin screens use Tamagui components instead of raw `View`/`Text`/`Pressable`:
+
+```tsx
+// Before (raw RN)
+<View style={[styles.card, { backgroundColor: theme.surface }]}>
+  <Text style={[styles.name, { color: theme.text }]}>{product.name}</Text>
+  <Pressable style={[styles.button, { backgroundColor: theme.primary }]}>
+    <Text style={{ color: "#fff" }}>Add to Cart</Text>
+  </Pressable>
+</View>
+
+// After (Tamagui)
+<Card padded elevate>
+  <Text fontSize="$5" fontWeight="600">{product.name}</Text>
+  <Button theme="primary" onPress={handleAdd}>Add to Cart</Button>
+</Card>
+```
+
+Tamagui handles theming, hover/press states, animations, and platform consistency automatically.
+
+---
+
+## 12. White-Label Build System
+
+### Per-customer configuration
+
+Static config uses `app.config.ts` (replaces `app.json`) with environment variables:
+
+```typescript
+// app.config.ts
+export default {
+  name: process.env.APP_NAME || "EmDash",
+  slug: process.env.APP_SLUG || "emdash-mobile",
+  version: process.env.APP_VERSION || "0.1.0",
+  scheme: process.env.APP_SCHEME || "emdash",
+  orientation: "portrait",
+  userInterfaceStyle: "automatic",
+  newArchEnabled: true,
+  icon: process.env.APP_ICON || "./assets/icon.png",
+  splash: {
+    image: process.env.APP_SPLASH || "./assets/splash.png",
+    resizeMode: "contain",
+    backgroundColor: process.env.APP_SPLASH_BG || "#ffffff",
+  },
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: process.env.APP_IOS_BUNDLE || "com.emdash.mobile",
+  },
+  android: {
+    adaptiveIcon: {
+      foregroundImage: process.env.APP_ANDROID_ICON || "./assets/adaptive-icon.png",
+      backgroundColor: process.env.APP_SPLASH_BG || "#ffffff",
+    },
+    package: process.env.APP_ANDROID_PACKAGE || "com.emdash.mobile",
+  },
+  plugins: ["expo-router", "expo-secure-store"],
+  experiments: { typedRoutes: true },
+};
+```
+
+### GitHub Actions build pipeline
+
+```yaml
+# .github/workflows/build-mobile.yml (simplified)
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { java-version: "17" }
+      - run: pnpm install
+      - run: |
+          cd packages/mobile
+          APP_NAME="${{ inputs.app_name }}" \
+          APP_ANDROID_PACKAGE="${{ inputs.android_package }}" \
+          EXPO_PUBLIC_EMDASH_URL="${{ inputs.emdash_url }}" \
+          npx expo prebuild --platform android --clean
+      - run: |
+          cd packages/mobile/android
+          ./gradlew assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: packages/mobile/android/app/build/outputs/apk/release/*.apk
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install
+      - run: |
+          cd packages/mobile
+          APP_NAME="${{ inputs.app_name }}" \
+          APP_IOS_BUNDLE="${{ inputs.ios_bundle }}" \
+          EXPO_PUBLIC_EMDASH_URL="${{ inputs.emdash_url }}" \
+          npx expo prebuild --platform ios --clean
+      - run: |
+          cd packages/mobile/ios
+          xcodebuild -workspace EmDash.xcworkspace \
+            -scheme EmDash -configuration Release \
+            -archivePath build/EmDash.xcarchive archive
+```
+
+Each customer triggers a build with their own env vars → unique branded APK/IPA.
+
+### What stays dynamic (runtime) vs static (build-time)
+
+| Aspect | When it's set | Source |
+|---|---|---|
+| App name, icon, splash, bundle ID | **Build-time** (env vars → `expo prebuild`) | GitHub Actions inputs |
+| Theme colors, branding, site name | **Runtime** (`/app/config`) | EmDash server |
+| Tabs, plugin screens, features | **Runtime** (`/app/config`) | EmDash server |
+
+This means a customer can change their theme colors without rebuilding the app. They only need a rebuild for app name/icon/bundle ID changes.
+
+---
+
+## 13. Error Handling
 
 | Scenario | Handling |
 |---|---|
@@ -373,7 +534,7 @@ All versions pinned to Expo SDK 52 compatible. `expo-dev-client` included from d
 
 ---
 
-## 12. What Phase 2 Adds (no refactoring)
+## 14. What Phase 2 Adds (no refactoring)
 
 | Feature | How it fits |
 |---|---|
@@ -387,11 +548,11 @@ None of these require changes to the Phase 1 shell architecture.
 
 ---
 
-## 13. Files to Create
+## 15. Files to Create
 
 | File | Purpose |
 |---|---|
-| `app.json` | Expo config with `expo-dev-client` |
+| `app.config.ts` | Dynamic Expo config with env vars for white-label |
 | `babel.config.js` | Module resolver for plugin imports |
 | `tsconfig.json` | TypeScript config with `@/` alias |
 | `package.json` | Dependencies (SDK 52 compatible) |
@@ -411,3 +572,5 @@ None of these require changes to the Phase 1 shell architecture.
 | `providers/PluginProvider.tsx` | Plugin state + cart badge tracking |
 | `components/LoadingScreen.tsx` | Loading spinner |
 | `components/ErrorBoundary.tsx` | Catches plugin screen crashes |
+| `lib/tamagui.config.ts` | Tamagui theme config with dynamic token mapping |
+| `.github/workflows/build-mobile.yml` | GitHub Actions build pipeline for white-label APK/IPA |
