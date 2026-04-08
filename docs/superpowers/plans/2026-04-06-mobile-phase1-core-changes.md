@@ -1,3 +1,5 @@
+> **SUPERSEDED** by `2026-04-08-mobile-rewrite-phase1.md`. This plan was for incremental changes; the app was rewritten from scratch instead.
+
 # Mobile Phase 1: Core Changes Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -17,47 +19,50 @@
 ## File Map
 
 ### New Files
-| File | Responsibility |
-|------|---------------|
-| `packages/core/src/database/migrations/033_customers.ts` | Core customers table |
-| `packages/core/src/database/migrations/034_push_devices.ts` | Push devices table |
-| `packages/core/src/astro/routes/api/customers/register.ts` | Customer signup |
-| `packages/core/src/astro/routes/api/customers/login.ts` | Customer login → token |
-| `packages/core/src/astro/routes/api/customers/session.ts` | Validate customer token |
-| `packages/core/src/astro/routes/api/customers/logout.ts` | Destroy customer session |
-| `packages/core/src/astro/routes/api/customers/me.ts` | Get/update customer profile |
-| `packages/core/src/astro/routes/api/public/content/[collection].ts` | Public read-only content |
-| `packages/core/src/astro/routes/api/app/config.ts` | App config endpoint |
-| `packages/core/src/api/handlers/app-config.ts` | App config business logic |
-| `packages/core/src/api/handlers/customer-auth.ts` | Customer auth business logic |
-| `packages/core/src/api/handlers/image-transform.ts` | Image transform param parser |
-| `packages/core/src/astro/routes/api/push/register.ts` | Register/unregister push device |
-| `packages/core/src/mobile/bridge-script.ts` | App Bridge JS that gets injected |
-| `packages/core/tests/unit/customers.test.ts` | Core customer identity tests |
-| `packages/core/tests/unit/app-config.test.ts` | App config handler tests |
-| `packages/core/tests/unit/public-content.test.ts` | Public content API tests |
-| `packages/core/tests/unit/push-devices.test.ts` | Push device registration tests |
-| `packages/core/tests/unit/image-transform.test.ts` | Image transform tests |
+
+| File                                                                | Responsibility                   |
+| ------------------------------------------------------------------- | -------------------------------- |
+| `packages/core/src/database/migrations/033_customers.ts`            | Core customers table             |
+| `packages/core/src/database/migrations/034_push_devices.ts`         | Push devices table               |
+| `packages/core/src/astro/routes/api/customers/register.ts`          | Customer signup                  |
+| `packages/core/src/astro/routes/api/customers/login.ts`             | Customer login → token           |
+| `packages/core/src/astro/routes/api/customers/session.ts`           | Validate customer token          |
+| `packages/core/src/astro/routes/api/customers/logout.ts`            | Destroy customer session         |
+| `packages/core/src/astro/routes/api/customers/me.ts`                | Get/update customer profile      |
+| `packages/core/src/astro/routes/api/public/content/[collection].ts` | Public read-only content         |
+| `packages/core/src/astro/routes/api/app/config.ts`                  | App config endpoint              |
+| `packages/core/src/api/handlers/app-config.ts`                      | App config business logic        |
+| `packages/core/src/api/handlers/customer-auth.ts`                   | Customer auth business logic     |
+| `packages/core/src/api/handlers/image-transform.ts`                 | Image transform param parser     |
+| `packages/core/src/astro/routes/api/push/register.ts`               | Register/unregister push device  |
+| `packages/core/src/mobile/bridge-script.ts`                         | App Bridge JS that gets injected |
+| `packages/core/tests/unit/customers.test.ts`                        | Core customer identity tests     |
+| `packages/core/tests/unit/app-config.test.ts`                       | App config handler tests         |
+| `packages/core/tests/unit/public-content.test.ts`                   | Public content API tests         |
+| `packages/core/tests/unit/push-devices.test.ts`                     | Push device registration tests   |
+| `packages/core/tests/unit/image-transform.test.ts`                  | Image transform tests            |
 
 ### Modified Files
-| File | Change |
-|------|--------|
-| `packages/core/src/database/types.ts` | Add `CustomersTable`, `PushDevicesTable` to Database interface |
-| `packages/core/src/database/migrations/runner.ts` | Import and register migrations 033, 034 |
-| `packages/core/src/plugins/types.ts` | Add `PluginMobileConfig`, `mobile` field, `AppConfigContribution` type |
-| `packages/core/src/plugins/hooks.ts` | Register `app:config` and `customer:authenticated` hooks |
-| `packages/core/src/api/csrf.ts` | Exempt Bearer token requests from CSRF |
-| `packages/core/src/astro/middleware/auth.ts` | Add customer and public routes to PUBLIC_API_PREFIXES |
-| `packages/core/src/astro/middleware.ts` | Add CORS headers + bridge script injection |
-| `packages/core/src/astro/integration/routes.ts` | Register all new routes |
-| `packages/core/src/astro/routes/api/media/file/[key].ts` | Add `?w=&h=&fit=` query params |
-| `packages/plugins/commerce/src/sandbox-entry.ts` | Add `mobile` config, migrate customer auth to use core customers |
+
+| File                                                     | Change                                                                 |
+| -------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `packages/core/src/database/types.ts`                    | Add `CustomersTable`, `PushDevicesTable` to Database interface         |
+| `packages/core/src/database/migrations/runner.ts`        | Import and register migrations 033, 034                                |
+| `packages/core/src/plugins/types.ts`                     | Add `PluginMobileConfig`, `mobile` field, `AppConfigContribution` type |
+| `packages/core/src/plugins/hooks.ts`                     | Register `app:config` and `customer:authenticated` hooks               |
+| `packages/core/src/api/csrf.ts`                          | Exempt Bearer token requests from CSRF                                 |
+| `packages/core/src/astro/middleware/auth.ts`             | Add customer and public routes to PUBLIC_API_PREFIXES                  |
+| `packages/core/src/astro/middleware.ts`                  | Add CORS headers + bridge script injection                             |
+| `packages/core/src/astro/integration/routes.ts`          | Register all new routes                                                |
+| `packages/core/src/astro/routes/api/media/file/[key].ts` | Add `?w=&h=&fit=` query params                                         |
+| `packages/plugins/commerce/src/sandbox-entry.ts`         | Add `mobile` config, migrate customer auth to use core customers       |
 
 ---
 
 ## Task 1: Core Customer Identity — Migration
 
 **Files:**
+
 - Create: `packages/core/src/database/migrations/033_customers.ts`
 - Modify: `packages/core/src/database/migrations/runner.ts`
 - Modify: `packages/core/src/database/types.ts`
@@ -118,10 +123,16 @@ describe("core customer identity", () => {
 			updated_at: new Date().toISOString(),
 		};
 
-		await db.insertInto("_emdash_customers").values({ id: "cust_1", ...base }).execute();
+		await db
+			.insertInto("_emdash_customers")
+			.values({ id: "cust_1", ...base })
+			.execute();
 
 		await expect(
-			db.insertInto("_emdash_customers").values({ id: "cust_2", ...base }).execute(),
+			db
+				.insertInto("_emdash_customers")
+				.values({ id: "cust_2", ...base })
+				.execute(),
 		).rejects.toThrow();
 	});
 
@@ -152,7 +163,11 @@ describe("core customer identity", () => {
 
 		const session = await db
 			.selectFrom("_emdash_customer_sessions")
-			.innerJoin("_emdash_customers", "_emdash_customers.id", "_emdash_customer_sessions.customer_id")
+			.innerJoin(
+				"_emdash_customers",
+				"_emdash_customers.id",
+				"_emdash_customer_sessions.customer_id",
+			)
 			.select([
 				"_emdash_customers.id as customer_id",
 				"_emdash_customers.email",
@@ -208,7 +223,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	await db.schema
 		.createTable("_emdash_customer_sessions")
 		.addColumn("id", "text", (col) => col.primaryKey())
-		.addColumn("customer_id", "text", (col) => col.notNull().references("_emdash_customers.id").onDelete("cascade"))
+		.addColumn("customer_id", "text", (col) =>
+			col.notNull().references("_emdash_customers.id").onDelete("cascade"),
+		)
 		.addColumn("token_hash", "text", (col) => col.notNull().unique())
 		.addColumn("expires_at", "text", (col) => col.notNull())
 		.addColumn("created_at", "text", (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
@@ -270,11 +287,13 @@ _emdash_customer_sessions: CustomerSessionsTable;
 In `packages/core/src/database/migrations/runner.ts`, add:
 
 At the top:
+
 ```typescript
 import * as m033 from "./033_customers.js";
 ```
 
 In `getMigrations()`:
+
 ```typescript
 "033_customers": m033,
 ```
@@ -300,6 +319,7 @@ git commit -m "feat(core): add _emdash_customers and _emdash_customer_sessions t
 ## Task 2: Core Customer Auth Endpoints
 
 **Files:**
+
 - Create: `packages/core/src/api/handlers/customer-auth.ts`
 - Create: `packages/core/src/astro/routes/api/customers/register.ts`
 - Create: `packages/core/src/astro/routes/api/customers/login.ts`
@@ -323,14 +343,24 @@ const PBKDF2_ITERATIONS = 100_000;
 export async function hashPassword(password: string): Promise<string> {
 	const salt = crypto.getRandomValues(new Uint8Array(16));
 	const encoder = new TextEncoder();
-	const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+	const keyMaterial = await crypto.subtle.importKey(
+		"raw",
+		encoder.encode(password),
+		"PBKDF2",
+		false,
+		["deriveBits"],
+	);
 	const hash = await crypto.subtle.deriveBits(
 		{ name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
 		keyMaterial,
 		256,
 	);
-	const saltHex = Array.from(salt).map((b) => b.toString(16).padStart(2, "0")).join("");
-	const hashHex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+	const saltHex = Array.from(salt)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+	const hashHex = Array.from(new Uint8Array(hash))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	return `${saltHex}:${hashHex}`;
 }
 
@@ -339,19 +369,29 @@ export async function verifyPassword(password: string, stored: string): Promise<
 	if (!saltHex || !_hashHex) return false;
 	const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
 	const encoder = new TextEncoder();
-	const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
+	const keyMaterial = await crypto.subtle.importKey(
+		"raw",
+		encoder.encode(password),
+		"PBKDF2",
+		false,
+		["deriveBits"],
+	);
 	const hash = await crypto.subtle.deriveBits(
 		{ name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
 		keyMaterial,
 		256,
 	);
-	const hashHex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+	const hashHex = Array.from(new Uint8Array(hash))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 	return hashHex === _hashHex;
 }
 
 export function generateSessionToken(): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(32));
-	return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+	return Array.from(bytes)
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 }
 
 export function hashSessionToken(token: string): string {
@@ -366,7 +406,9 @@ export async function hashSessionTokenAsync(token: string): Promise<string> {
 	const encoder = new TextEncoder();
 	const data = encoder.encode(token);
 	const hash = await crypto.subtle.digest("SHA-256", data);
-	return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+	return Array.from(new Uint8Array(hash))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 }
 
 interface CustomerPublic {
@@ -390,7 +432,10 @@ export async function registerCustomer(
 		.executeTakeFirst();
 
 	if (existing) {
-		return { success: false, error: { code: "EMAIL_EXISTS", message: "An account with this email already exists" } };
+		return {
+			success: false,
+			error: { code: "EMAIL_EXISTS", message: "An account with this email already exists" },
+		};
 	}
 
 	const id = crypto.randomUUID();
@@ -449,12 +494,18 @@ export async function loginCustomer(
 		.executeTakeFirst();
 
 	if (!customer) {
-		return { success: false, error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" } };
+		return {
+			success: false,
+			error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" },
+		};
 	}
 
 	const valid = await verifyPassword(input.password, customer.password_hash);
 	if (!valid) {
-		return { success: false, error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" } };
+		return {
+			success: false,
+			error: { code: "INVALID_CREDENTIALS", message: "Invalid email or password" },
+		};
 	}
 
 	// Update last_login_at
@@ -517,7 +568,10 @@ export async function validateCustomerSession(
 		.executeTakeFirst();
 
 	if (!result) {
-		return { success: false, error: { code: "INVALID_TOKEN", message: "Invalid or expired session" } };
+		return {
+			success: false,
+			error: { code: "INVALID_TOKEN", message: "Invalid or expired session" },
+		};
 	}
 
 	if (new Date(result.expires_at) < new Date()) {
@@ -786,11 +840,26 @@ This makes all customer endpoints public (they handle their own auth via Bearer 
 In `packages/core/src/astro/integration/routes.ts`, add:
 
 ```typescript
-injectRoute({ pattern: "/_emdash/api/customers/register", entrypoint: resolveRoute("api/customers/register.ts") });
-injectRoute({ pattern: "/_emdash/api/customers/login", entrypoint: resolveRoute("api/customers/login.ts") });
-injectRoute({ pattern: "/_emdash/api/customers/session", entrypoint: resolveRoute("api/customers/session.ts") });
-injectRoute({ pattern: "/_emdash/api/customers/logout", entrypoint: resolveRoute("api/customers/logout.ts") });
-injectRoute({ pattern: "/_emdash/api/customers/me", entrypoint: resolveRoute("api/customers/me.ts") });
+injectRoute({
+	pattern: "/_emdash/api/customers/register",
+	entrypoint: resolveRoute("api/customers/register.ts"),
+});
+injectRoute({
+	pattern: "/_emdash/api/customers/login",
+	entrypoint: resolveRoute("api/customers/login.ts"),
+});
+injectRoute({
+	pattern: "/_emdash/api/customers/session",
+	entrypoint: resolveRoute("api/customers/session.ts"),
+});
+injectRoute({
+	pattern: "/_emdash/api/customers/logout",
+	entrypoint: resolveRoute("api/customers/logout.ts"),
+});
+injectRoute({
+	pattern: "/_emdash/api/customers/me",
+	entrypoint: resolveRoute("api/customers/me.ts"),
+});
 ```
 
 - [ ] **Step 9: Add `customer:authenticated` hook**
@@ -823,6 +892,7 @@ git commit -m "feat(core): add core customer auth endpoints (register, login, se
 ## Task 3: CSRF Exemption for Bearer Token + CORS Headers
 
 **Files:**
+
 - Modify: `packages/core/src/api/csrf.ts`
 - Modify: `packages/core/src/astro/middleware.ts`
 
@@ -853,7 +923,10 @@ if (url.pathname.startsWith("/_emdash/api/")) {
 	if (origin) {
 		response.headers.set("Access-Control-Allow-Origin", origin);
 		response.headers.set("Access-Control-Allow-Credentials", "true");
-		response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-EmDash-Request, X-EmDash-App");
+		response.headers.set(
+			"Access-Control-Allow-Headers",
+			"Content-Type, Authorization, X-EmDash-Request, X-EmDash-App",
+		);
 		response.headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
 		response.headers.set("Access-Control-Max-Age", "86400");
 	}
@@ -894,6 +967,7 @@ git commit -m "feat(core): exempt Bearer token from CSRF, add CORS headers for A
 ## Task 4: Public Content API
 
 **Files:**
+
 - Create: `packages/core/src/astro/routes/api/public/content/[collection].ts`
 - Modify: `packages/core/src/astro/middleware/auth.ts`
 - Modify: `packages/core/src/astro/integration/routes.ts`
@@ -973,7 +1047,10 @@ Also add to `PUBLIC_API_PREFIXES`:
 In `packages/core/src/astro/integration/routes.ts`:
 
 ```typescript
-injectRoute({ pattern: "/_emdash/api/public/content/[collection]", entrypoint: resolveRoute("api/public/content/[collection].ts") });
+injectRoute({
+	pattern: "/_emdash/api/public/content/[collection]",
+	entrypoint: resolveRoute("api/public/content/[collection].ts"),
+});
 ```
 
 - [ ] **Step 5: Run lint and typecheck**
@@ -992,6 +1069,7 @@ git commit -m "feat(core): add public read-only content API for published conten
 ## Task 5: Add `mobile` Field to Plugin Types
 
 **Files:**
+
 - Modify: `packages/core/src/plugins/types.ts`
 
 - [ ] **Step 1: Add PluginMobileConfig interface and mobile field**
@@ -1066,6 +1144,7 @@ git commit -m "feat(core): add PluginMobileConfig, app:config hook, and AppConfi
 ## Task 6: App Config API Endpoint
 
 **Files:**
+
 - Create: `packages/core/src/api/handlers/app-config.ts`
 - Create: `packages/core/src/astro/routes/api/app/config.ts`
 - Modify: `packages/core/src/astro/integration/routes.ts`
@@ -1096,12 +1175,19 @@ describe("buildAppConfig", () => {
 		const result = await buildAppConfig({
 			siteName: "Test",
 			siteUrl: "https://test.com",
-			plugins: [{
-				id: "commerce",
-				name: "Commerce",
-				version: "1.0.0",
-				mobile: { native: true, label: "Shop", icon: "store", tabs: [{ key: "shop", label: "Shop", icon: "store", screen: "commerce:product-list" }] },
-			}],
+			plugins: [
+				{
+					id: "commerce",
+					name: "Commerce",
+					version: "1.0.0",
+					mobile: {
+						native: true,
+						label: "Shop",
+						icon: "store",
+						tabs: [{ key: "shop", label: "Shop", icon: "store", screen: "commerce:product-list" }],
+					},
+				},
+			],
 			hookContributions: [],
 		});
 		expect(result.plugins).toHaveLength(1);
@@ -1132,6 +1218,7 @@ Create `packages/core/src/api/handlers/app-config.ts` with `buildAppConfig()` fu
 Create `packages/core/src/astro/routes/api/app/config.ts` as GET route that runs `app:config` hooks and calls `buildAppConfig()`.
 
 Register in routes.ts:
+
 ```typescript
 injectRoute({ pattern: "/_emdash/api/app/config", entrypoint: resolveRoute("api/app/config.ts") });
 ```
@@ -1152,6 +1239,7 @@ git commit -m "feat(core): add GET /app/config endpoint for mobile app configura
 ## Task 7: Push Device Registration
 
 **Files:**
+
 - Create: `packages/core/src/database/migrations/034_push_devices.ts`
 - Modify: `packages/core/src/database/migrations/runner.ts`
 - Modify: `packages/core/src/database/types.ts`
@@ -1170,14 +1258,20 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	await db.schema
 		.createTable("_emdash_push_devices")
 		.addColumn("id", "text", (col) => col.primaryKey())
-		.addColumn("customer_id", "text", (col) => col.references("_emdash_customers.id").onDelete("cascade"))
+		.addColumn("customer_id", "text", (col) =>
+			col.references("_emdash_customers.id").onDelete("cascade"),
+		)
 		.addColumn("push_token", "text", (col) => col.notNull().unique())
 		.addColumn("platform", "text", (col) => col.notNull())
 		.addColumn("created_at", "text", (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
 		.addColumn("last_seen_at", "text", (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
 		.execute();
 
-	await db.schema.createIndex("idx_push_devices_customer").on("_emdash_push_devices").column("customer_id").execute();
+	await db.schema
+		.createIndex("idx_push_devices_customer")
+		.on("_emdash_push_devices")
+		.column("customer_id")
+		.execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
@@ -1204,6 +1298,7 @@ git commit -m "feat(core): add push device registration table and endpoints"
 ## Task 8: Image Transform URL Contract
 
 **Files:**
+
 - Create: `packages/core/src/api/handlers/image-transform.ts`
 - Modify: `packages/core/src/astro/routes/api/media/file/[key].ts`
 - Create: `packages/core/tests/unit/image-transform.test.ts`
@@ -1227,6 +1322,7 @@ git commit -m "feat(core): add image transform URL params on media endpoint (con
 ## Task 9: App Bridge Script Injection
 
 **Files:**
+
 - Create: `packages/core/src/mobile/bridge-script.ts`
 - Modify: `packages/core/src/astro/middleware.ts`
 
@@ -1249,6 +1345,7 @@ git commit -m "feat(core): inject App Bridge script into storefront pages for mo
 ## Task 10: Update Commerce Plugin
 
 **Files:**
+
 - Modify: `packages/plugins/commerce/src/sandbox-entry.ts`
 
 - [ ] **Step 1: Add mobile config**
@@ -1270,6 +1367,7 @@ mobile: {
 Update commerce customer routes (`customer/register`, `customer/login`, `customer/session`, `customer/logout`) to delegate to core endpoints or reference `_emdash_customers` table instead of plugin storage.
 
 This is the largest change — the commerce plugin's `customer-auth.ts` currently stores customers in `_plugin_storage`. It needs to:
+
 1. Call core customer auth endpoints instead of managing its own customers
 2. Keep its account routes (addresses, orders) but look up `customerId` from core customer sessions
 3. Keep cart linking via `customerId` from `_emdash_customers.id`
@@ -1293,40 +1391,40 @@ After all 10 tasks:
 
 ### New API Surface
 
-| Method | Route | Auth | Purpose |
-|--------|-------|------|---------|
-| POST | `/_emdash/api/customers/register` | Public | Customer signup |
-| POST | `/_emdash/api/customers/login` | Public | Customer login → token |
-| GET | `/_emdash/api/customers/session` | Bearer | Validate customer token |
-| POST | `/_emdash/api/customers/logout` | Bearer | Destroy session |
-| GET/PATCH | `/_emdash/api/customers/me` | Bearer | Get/update profile |
-| GET | `/_emdash/api/public/content/[collection]` | Public | Published content read-only |
-| GET | `/_emdash/api/app/config` | Public | Mobile app configuration |
-| POST | `/_emdash/api/push/register` | Bearer | Register push device |
-| DELETE | `/_emdash/api/push/register` | Bearer | Unregister push device |
+| Method    | Route                                      | Auth   | Purpose                     |
+| --------- | ------------------------------------------ | ------ | --------------------------- |
+| POST      | `/_emdash/api/customers/register`          | Public | Customer signup             |
+| POST      | `/_emdash/api/customers/login`             | Public | Customer login → token      |
+| GET       | `/_emdash/api/customers/session`           | Bearer | Validate customer token     |
+| POST      | `/_emdash/api/customers/logout`            | Bearer | Destroy session             |
+| GET/PATCH | `/_emdash/api/customers/me`                | Bearer | Get/update profile          |
+| GET       | `/_emdash/api/public/content/[collection]` | Public | Published content read-only |
+| GET       | `/_emdash/api/app/config`                  | Public | Mobile app configuration    |
+| POST      | `/_emdash/api/push/register`               | Bearer | Register push device        |
+| DELETE    | `/_emdash/api/push/register`               | Bearer | Unregister push device      |
 
 ### New Database Tables
 
-| Table | Purpose |
-|-------|---------|
-| `_emdash_customers` | Core customer identity |
-| `_emdash_customer_sessions` | Customer session tokens |
-| `_emdash_push_devices` | Push notification device registration |
+| Table                       | Purpose                               |
+| --------------------------- | ------------------------------------- |
+| `_emdash_customers`         | Core customer identity                |
+| `_emdash_customer_sessions` | Customer session tokens               |
+| `_emdash_push_devices`      | Push notification device registration |
 
 ### New Hooks
 
-| Hook | Purpose |
-|------|---------|
-| `customer:authenticated` | Plugins react to customer login/register |
-| `app:config` | Plugins contribute theme/features to mobile config |
+| Hook                     | Purpose                                            |
+| ------------------------ | -------------------------------------------------- |
+| `customer:authenticated` | Plugins react to customer login/register           |
+| `app:config`             | Plugins contribute theme/features to mobile config |
 
 ### Core Modifications
 
-| Change | Why |
-|--------|-----|
-| CSRF exempts Bearer token | Mobile app uses tokens not cookies |
-| CORS headers on API routes | WebViews and mobile clients need cross-origin access |
-| OPTIONS preflight handler | Required for CORS |
-| Bridge script injection | WebView plugins get `window.emdash.*` SDK |
-| Image transform URL params | Mobile requests optimized images |
-| Public content route | Mobile app reads published content without admin auth |
+| Change                     | Why                                                   |
+| -------------------------- | ----------------------------------------------------- |
+| CSRF exempts Bearer token  | Mobile app uses tokens not cookies                    |
+| CORS headers on API routes | WebViews and mobile clients need cross-origin access  |
+| OPTIONS preflight handler  | Required for CORS                                     |
+| Bridge script injection    | WebView plugins get `window.emdash.*` SDK             |
+| Image transform URL params | Mobile requests optimized images                      |
+| Public content route       | Mobile app reads published content without admin auth |
