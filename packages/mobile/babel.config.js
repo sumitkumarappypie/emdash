@@ -9,7 +9,7 @@ module.exports = function (api) {
 					alias: {
 						"@": ".",
 						"@emdash-cms/plugin-commerce/mobile":
-							"../../plugins/commerce/src/mobile/index.ts",
+							"../plugins/commerce/src/mobile/index.ts",
 					},
 				},
 			],
