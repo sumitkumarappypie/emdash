@@ -264,7 +264,41 @@ interface AuthState {
 
 ---
 
-## 8. Commerce Plugin Mobile Package
+## 8. Plugin Dependency Model (Shopify Pattern)
+
+Following Shopify's approach, plugins fall into two strict categories:
+
+### First-party plugins → Native code, monorepo
+
+First-party plugins (commerce, forms, etc.) live in the EmDash monorepo. Their mobile screens are React Native `.tsx` files that share the shell's dependency tree. There is no "install plugin deps" step — it's all one codebase, one `node_modules`, one build.
+
+```
+packages/
+  mobile/              ← shell app (depends on shared deps)
+  plugins/commerce/    ← first-party, same monorepo
+    src/mobile/        ← native screens, uses same react-native/react-query/etc.
+  plugins/forms/       ← first-party, same monorepo
+    src/mobile/        ← native screens
+```
+
+If a first-party plugin needs a new native module (e.g., a maps plugin needing `react-native-maps`), it gets added to the shell's `package.json` — because they share the same build. This is exactly how Shopify manages native features across teams in their monorepo.
+
+### Third-party plugins → WebView only (Phase 2)
+
+Third-party developers **never ship native code** into the app. They build web pages that run inside the shell's managed WebView via App Bridge. The dependency problem doesn't exist because third-party code is just HTML/JS loaded at a URL at runtime.
+
+This is the core Shopify insight: you can't let arbitrary third-party code into your native build. WebView is the sandbox.
+
+### Summary
+
+| Plugin type | Code location | Dependencies | Native access |
+|---|---|---|---|
+| First-party | Monorepo (`packages/plugins/*/src/mobile/`) | Shared with shell | Full React Native |
+| Third-party | External URL | None (web only) | Via App Bridge postMessage |
+
+---
+
+## 9. Commerce Plugin Mobile Package
 
 Already built at `packages/plugins/commerce/src/mobile/`. Self-contained:
 
@@ -293,7 +327,7 @@ plugins: [
 
 ---
 
-## 9. Dependencies
+## 10. Dependencies
 
 ```json
 {
@@ -327,7 +361,7 @@ All versions pinned to Expo SDK 52 compatible. `expo-dev-client` included from d
 
 ---
 
-## 10. Error Handling
+## 11. Error Handling
 
 | Scenario | Handling |
 |---|---|
@@ -339,7 +373,7 @@ All versions pinned to Expo SDK 52 compatible. `expo-dev-client` included from d
 
 ---
 
-## 11. What Phase 2 Adds (no refactoring)
+## 12. What Phase 2 Adds (no refactoring)
 
 | Feature | How it fits |
 |---|---|
@@ -353,7 +387,7 @@ None of these require changes to the Phase 1 shell architecture.
 
 ---
 
-## 12. Files to Create
+## 13. Files to Create
 
 | File | Purpose |
 |---|---|
