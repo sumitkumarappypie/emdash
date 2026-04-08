@@ -6,7 +6,7 @@
 
 **Architecture:** Expo Router shell with 4 providers (Config, Theme, Auth, Plugin), dynamic tabs from `/app/config`, a static screen registry that maps plugin screen IDs to React Native components, and a development build via `expo-dev-client` (no Expo Go).
 
-**Tech Stack:** Expo SDK 52, expo-router 4, expo-dev-client, React Query, expo-secure-store, React Native 0.76.9
+**Tech Stack:** Expo SDK 52, expo-router 4, expo-dev-client, Tamagui v1, React Query, expo-secure-store, React Native 0.76.9
 
 **Spec:** `docs/superpowers/specs/2026-04-08-mobile-rewrite-phase1.md`
 
@@ -17,7 +17,7 @@
 **Files:**
 - Delete: all files in `packages/mobile/` except `.env`
 - Create: `packages/mobile/package.json`
-- Create: `packages/mobile/app.json`
+- Create: `packages/mobile/app.config.ts`
 - Create: `packages/mobile/tsconfig.json`
 - Create: `packages/mobile/babel.config.js`
 - Create: `packages/mobile/.gitignore`
@@ -52,6 +52,8 @@ cp /tmp/emdash-mobile-env-backup .env
 	"dependencies": {
 		"@expo/vector-icons": "~14.0.4",
 		"@react-native-async-storage/async-storage": "1.23.1",
+		"@tamagui/config": "^1.120.0",
+		"@tamagui/font-inter": "^1.120.0",
 		"@tanstack/react-query": "^5.60.0",
 		"expo": "~52.0.0",
 		"expo-constants": "~17.0.0",
@@ -64,10 +66,12 @@ cp /tmp/emdash-mobile-env-backup .env
 		"react-native": "0.76.9",
 		"react-native-safe-area-context": "~4.12.0",
 		"react-native-screens": "~4.4.0",
-		"react-native-webview": "13.12.5"
+		"react-native-webview": "13.12.5",
+		"tamagui": "^1.120.0"
 	},
 	"devDependencies": {
 		"@babel/runtime": "^7.26.0",
+		"@tamagui/babel-plugin": "^1.120.0",
 		"@types/react": "~18.3.0",
 		"babel-plugin-module-resolver": "^5.0.3",
 		"typescript": "~5.3.3"
@@ -75,34 +79,43 @@ cp /tmp/emdash-mobile-env-backup .env
 }
 ```
 
-- [ ] **Step 3: Create app.json**
+- [ ] **Step 3: Create app.config.ts (white-label, replaces app.json)**
 
-```json
-{
-	"expo": {
-		"name": "EmDash",
-		"slug": "emdash-mobile",
-		"version": "0.1.0",
-		"scheme": "emdash",
-		"orientation": "portrait",
-		"userInterfaceStyle": "automatic",
-		"newArchEnabled": true,
-		"ios": {
-			"supportsTablet": true,
-			"bundleIdentifier": "com.emdash.mobile"
+```typescript
+import type { ExpoConfig } from "expo/config";
+
+const config: ExpoConfig = {
+	name: process.env.APP_NAME || "EmDash",
+	slug: process.env.APP_SLUG || "emdash-mobile",
+	version: process.env.APP_VERSION || "0.1.0",
+	scheme: process.env.APP_SCHEME || "emdash",
+	orientation: "portrait",
+	userInterfaceStyle: "automatic",
+	newArchEnabled: true,
+	icon: process.env.APP_ICON || "./assets/icon.png",
+	splash: {
+		image: process.env.APP_SPLASH || "./assets/splash.png",
+		resizeMode: "contain",
+		backgroundColor: process.env.APP_SPLASH_BG || "#ffffff",
+	},
+	ios: {
+		supportsTablet: true,
+		bundleIdentifier: process.env.APP_IOS_BUNDLE || "com.emdash.mobile",
+	},
+	android: {
+		adaptiveIcon: {
+			foregroundImage: process.env.APP_ANDROID_ICON || "./assets/adaptive-icon.png",
+			backgroundColor: process.env.APP_SPLASH_BG || "#ffffff",
 		},
-		"android": {
-			"adaptiveIcon": {
-				"backgroundColor": "#ffffff"
-			},
-			"package": "com.emdash.mobile"
-		},
-		"plugins": ["expo-router", "expo-secure-store"],
-		"experiments": {
-			"typedRoutes": true
-		}
-	}
-}
+		package: process.env.APP_ANDROID_PACKAGE || "com.emdash.mobile",
+	},
+	plugins: ["expo-router", "expo-secure-store"],
+	experiments: {
+		typedRoutes: true,
+	},
+};
+
+export default { expo: config };
 ```
 
 - [ ] **Step 4: Create tsconfig.json**
@@ -136,6 +149,14 @@ module.exports = function (api) {
 						"@emdash-cms/plugin-commerce/mobile":
 							"../../plugins/commerce/src/mobile/index.ts",
 					},
+				},
+			],
+			// Tamagui extracts styles at compile time for performance
+			[
+				"@tamagui/babel-plugin",
+				{
+					components: ["tamagui"],
+					config: "./lib/tamagui.config.ts",
 				},
 			],
 		],
@@ -380,7 +401,99 @@ git commit -m "feat(mobile): add shell types and API client"
 
 ---
 
-### Task 3: Shell providers — Config, Theme, Auth
+### Task 3: Tamagui config and dynamic theme
+
+**Files:**
+- Create: `packages/mobile/lib/tamagui.config.ts`
+
+- [ ] **Step 1: Create lib/tamagui.config.ts**
+
+This is the base Tamagui config. The shell's ThemeProvider will override theme tokens at runtime with colors from `/app/config`.
+
+```typescript
+import { createInterFont } from "@tamagui/font-inter";
+import { shorthands } from "@tamagui/shorthands";
+import { themes, tokens } from "@tamagui/config/v3";
+import { createTamagui } from "tamagui";
+
+const interFont = createInterFont();
+
+// Custom theme that will be overridden at runtime by /app/config colors
+const emdashLightTheme = {
+	...themes.light,
+	background: "#FFFFFF",
+	backgroundHover: "#F9FAFB",
+	backgroundPress: "#F3F4F6",
+	color: "#111827",
+	colorHover: "#111827",
+	colorPress: "#111827",
+	borderColor: "#E5E7EB",
+	placeholderColor: "#6B7280",
+	// Semantic tokens (custom)
+	primary: "#3B82F6",
+	primaryHover: "#2563EB",
+	secondary: "#6366F1",
+	surface: "#F9FAFB",
+	textMuted: "#6B7280",
+	error: "#EF4444",
+	success: "#10B981",
+};
+
+const emdashDarkTheme = {
+	...themes.dark,
+	background: "#111827",
+	backgroundHover: "#1F2937",
+	backgroundPress: "#374151",
+	color: "#F9FAFB",
+	colorHover: "#F9FAFB",
+	colorPress: "#F9FAFB",
+	borderColor: "#374151",
+	placeholderColor: "#9CA3AF",
+	primary: "#60A5FA",
+	primaryHover: "#3B82F6",
+	secondary: "#818CF8",
+	surface: "#1F2937",
+	textMuted: "#9CA3AF",
+	error: "#F87171",
+	success: "#34D399",
+};
+
+export const tamaguiConfig = createTamagui({
+	defaultTheme: "light",
+	shouldAddPrefersColorThemes: true,
+	themeClassNameOnRoot: true,
+	shorthands,
+	fonts: {
+		heading: interFont,
+		body: interFont,
+	},
+	themes: {
+		light: emdashLightTheme,
+		dark: emdashDarkTheme,
+	},
+	tokens,
+});
+
+export default tamaguiConfig;
+
+// Type export for Tamagui
+export type AppConfig = typeof tamaguiConfig;
+
+declare module "tamagui" {
+	interface TamaguiCustomConfig extends AppConfig {}
+}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add packages/mobile/lib/tamagui.config.ts
+git commit -m "feat(mobile): add Tamagui config with light/dark themes"
+```
+
+---
+
+### Task 4: Shell providers — Config, Theme (with Tamagui), Auth
 
 **Files:**
 - Create: `packages/mobile/providers/ConfigProvider.tsx`
@@ -446,11 +559,13 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
 }
 ```
 
-- [ ] **Step 2: Create providers/ThemeProvider.tsx**
+- [ ] **Step 2: Create providers/ThemeProvider.tsx (wraps Tamagui)**
 
 ```tsx
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { TamaguiProvider, Theme } from "tamagui";
 
+import tamaguiConfig from "@/lib/tamagui.config";
 import type { ThemeColors } from "@/lib/types";
 import { useConfig } from "./ConfigProvider";
 
@@ -475,7 +590,36 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 	const { config } = useConfig();
 	const theme = config?.theme ?? DEFAULT_THEME;
 
-	return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
+	// Build a dynamic Tamagui theme override from /app/config colors
+	const tamaguiThemeOverride = useMemo(
+		() => ({
+			background: theme.background,
+			backgroundHover: theme.surface,
+			backgroundPress: theme.surface,
+			color: theme.text,
+			colorHover: theme.text,
+			colorPress: theme.text,
+			borderColor: theme.surface,
+			placeholderColor: theme.textMuted,
+			primary: theme.primary,
+			secondary: theme.secondary,
+			surface: theme.surface,
+			textMuted: theme.textMuted,
+			error: theme.error,
+			success: theme.success,
+		}),
+		[theme],
+	);
+
+	return (
+		<TamaguiProvider
+			config={tamaguiConfig}
+			defaultTheme="light"
+			themeOverride={tamaguiThemeOverride}
+		>
+			<ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>
+		</TamaguiProvider>
+	);
 }
 ```
 
@@ -582,7 +726,7 @@ git commit -m "feat(mobile): add Config, Theme, Auth providers"
 
 ---
 
-### Task 4: PluginProvider — plugin state, cart badges, API initialization
+### Task 5: PluginProvider — plugin state, cart badges, API initialization
 
 **Files:**
 - Create: `packages/mobile/providers/PluginProvider.tsx`
@@ -684,7 +828,7 @@ git commit -m "feat(mobile): add screen registry and PluginProvider"
 
 ---
 
-### Task 5: Shared components — LoadingScreen, ErrorBoundary
+### Task 6: Shared components — LoadingScreen, ErrorBoundary
 
 **Files:**
 - Create: `packages/mobile/components/LoadingScreen.tsx`
@@ -784,7 +928,7 @@ git commit -m "feat(mobile): add LoadingScreen and ErrorBoundary components"
 
 ---
 
-### Task 6: Root layout — providers + Stack navigator
+### Task 7: Root layout — providers + Stack navigator
 
 **Files:**
 - Create: `packages/mobile/app/_layout.tsx`
@@ -885,7 +1029,7 @@ git commit -m "feat(mobile): add root layout with providers and Stack navigator"
 
 ---
 
-### Task 7: Dynamic tab bar layout
+### Task 8: Dynamic tab bar layout
 
 **Files:**
 - Create: `packages/mobile/app/(tabs)/_layout.tsx`
@@ -1005,7 +1149,7 @@ git commit -m "feat(mobile): add dynamic tab bar layout from config"
 
 ---
 
-### Task 8: Shell-owned screens — Home, Account, Login
+### Task 9: Shell-owned screens — Home, Account, Login
 
 **Files:**
 - Create: `packages/mobile/app/(tabs)/index.tsx`
@@ -1259,7 +1403,7 @@ git commit -m "feat(mobile): add Home, Account, Login screens"
 
 ---
 
-### Task 9: Plugin screen renderers — [plugin].tsx and screen/[id].tsx
+### Task 10: Plugin screen renderers — [plugin].tsx and screen/[id].tsx
 
 **Files:**
 - Create: `packages/mobile/app/(tabs)/[plugin].tsx`
@@ -1444,7 +1588,7 @@ git commit -m "feat(mobile): add plugin screen renderers — tab and stack"
 
 ---
 
-### Task 10: Build and verify on device
+### Task 11: Build and verify on device
 
 **Files:**
 - Modify: `packages/mobile/` (prebuild + run)
@@ -1492,7 +1636,127 @@ git commit -m "feat(mobile): verified working development build with plugin scre
 
 ---
 
-### Task 11: Clean up old tasks and update plan docs
+### Task 12: GitHub Actions build pipeline for white-label
+
+**Files:**
+- Create: `.github/workflows/build-mobile.yml`
+
+- [ ] **Step 1: Create .github/workflows/build-mobile.yml**
+
+```yaml
+name: Build Mobile App
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "App display name"
+        required: true
+        default: "EmDash"
+      android_package:
+        description: "Android package (e.g., com.client.app)"
+        required: true
+        default: "com.emdash.mobile"
+      ios_bundle:
+        description: "iOS bundle identifier"
+        required: true
+        default: "com.emdash.mobile"
+      emdash_url:
+        description: "EmDash server URL"
+        required: true
+      platform:
+        description: "Build platform"
+        required: true
+        type: choice
+        options:
+          - android
+          - ios
+          - both
+
+jobs:
+  build-android:
+    if: ${{ inputs.platform == 'android' || inputs.platform == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - run: pnpm install
+
+      - name: Prebuild Android
+        working-directory: packages/mobile
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          APP_ANDROID_PACKAGE: ${{ inputs.android_package }}
+          EXPO_PUBLIC_EMDASH_URL: ${{ inputs.emdash_url }}
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build APK
+        working-directory: packages/mobile/android
+        run: ./gradlew assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: packages/mobile/android/app/build/outputs/apk/release/*.apk
+
+  build-ios:
+    if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - run: pnpm install
+
+      - name: Prebuild iOS
+        working-directory: packages/mobile
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          APP_IOS_BUNDLE: ${{ inputs.ios_bundle }}
+          EXPO_PUBLIC_EMDASH_URL: ${{ inputs.emdash_url }}
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build IPA
+        working-directory: packages/mobile/ios
+        run: |
+          xcodebuild -workspace EmDash.xcworkspace \
+            -scheme EmDash \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/EmDash.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive
+          path: packages/mobile/ios/build/EmDash.xcarchive
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add .github/workflows/build-mobile.yml
+git commit -m "ci(mobile): add GitHub Actions pipeline for white-label APK/IPA builds"
+```
+
+---
+
+### Task 13: Clean up old tasks and update plan docs
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-04-06-mobile-phase1-core-changes.md` (mark superseded)
