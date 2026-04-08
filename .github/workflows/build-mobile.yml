@@ -1,0 +1,101 @@
+name: Build Mobile App
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "App display name"
+        required: true
+        default: "EmDash"
+      android_package:
+        description: "Android package (e.g., com.client.app)"
+        required: true
+        default: "com.emdash.mobile"
+      ios_bundle:
+        description: "iOS bundle identifier"
+        required: true
+        default: "com.emdash.mobile"
+      emdash_url:
+        description: "EmDash server URL"
+        required: true
+      platform:
+        description: "Build platform"
+        required: true
+        type: choice
+        options:
+          - android
+          - ios
+          - both
+
+jobs:
+  build-android:
+    if: ${{ inputs.platform == 'android' || inputs.platform == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - run: pnpm install
+
+      - name: Prebuild Android
+        working-directory: packages/mobile
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          APP_ANDROID_PACKAGE: ${{ inputs.android_package }}
+          EXPO_PUBLIC_EMDASH_URL: ${{ inputs.emdash_url }}
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build APK
+        working-directory: packages/mobile/android
+        run: ./gradlew assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: packages/mobile/android/app/build/outputs/apk/release/*.apk
+
+  build-ios:
+    if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - run: pnpm install
+
+      - name: Prebuild iOS
+        working-directory: packages/mobile
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          APP_IOS_BUNDLE: ${{ inputs.ios_bundle }}
+          EXPO_PUBLIC_EMDASH_URL: ${{ inputs.emdash_url }}
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build IPA
+        working-directory: packages/mobile/ios
+        run: |
+          xcodebuild -workspace EmDash.xcworkspace \
+            -scheme EmDash \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/EmDash.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive
+          path: packages/mobile/ios/build/EmDash.xcarchive
