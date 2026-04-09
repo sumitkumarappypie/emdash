@@ -13,6 +13,7 @@ import {
 	List,
 	GridFour,
 	Users,
+	UsersThree,
 	Stack,
 	ArrowsLeftRight,
 } from "@phosphor-icons/react";
@@ -179,6 +180,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			minRole: ROLE_EDITOR,
 			badge: commentCounts?.pending,
 		},
+		{ to: "/customers", label: "Customers", icon: UsersThree, minRole: ROLE_EDITOR },
 		{ to: "/menus", label: "Menus", icon: List, minRole: ROLE_EDITOR },
 		{ to: "/redirects", label: "Redirects", icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
 		{ to: "/widgets", label: "Widgets", icon: GridFour, minRole: ROLE_EDITOR },

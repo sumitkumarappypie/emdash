@@ -110,6 +110,7 @@ import {
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { BylinesPage } from "./routes/bylines";
+import { CustomersPage } from "./routes/customers";
 import { UsersPage } from "./routes/users";
 
 // Router context type
@@ -1265,6 +1266,13 @@ const bylinesRoute = createRoute({
 	component: BylinesPage,
 });
 
+// Customers route
+const customersRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/customers",
+	component: CustomersPage,
+});
+
 // Content Types routes
 const contentTypesListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -1516,6 +1524,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	taxonomyRoute,
 	usersRoute,
 	bylinesRoute,
+	customersRoute,
 	widgetsRoute,
 	settingsRoute,
 	generalSettingsRoute,

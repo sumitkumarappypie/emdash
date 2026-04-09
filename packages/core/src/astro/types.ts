@@ -329,6 +329,9 @@ export interface EmDashHandlers {
 	// Configured plugins (for plugin management)
 	configuredPlugins: import("../plugins/types.js").ResolvedPlugin[];
 
+	// Check if a plugin is enabled (active) — used by /app/config to filter disabled plugins
+	isPluginEnabled: (pluginId: string) => boolean;
+
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;
 

@@ -4,7 +4,6 @@ import type { PluginContext } from "emdash";
 import { commerceNav } from "./admin/blocks.js";
 import { buildCategoryPage, handleCategoryAction } from "./admin/categories.js";
 import { buildCouponList, handleCouponAction } from "./admin/coupons.js";
-import { buildCustomerList } from "./admin/customers.js";
 import { buildDashboard, buildRevenueWidget, buildRecentOrdersWidget } from "./admin/dashboard.js";
 import { buildOrderList, handleOrderAction } from "./admin/orders.js";
 import { buildProductList, handleProductAction } from "./admin/products.js";
@@ -75,8 +74,6 @@ async function buildAdminPage(page: string, ctx: PluginContext) {
 			return buildCategoryPage(ctx);
 		case "orders":
 			return buildOrderList(ctx);
-		case "customers":
-			return buildCustomerList(ctx);
 		case "coupons":
 			return buildCouponList(ctx);
 		case "settings":

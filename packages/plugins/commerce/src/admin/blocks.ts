@@ -6,7 +6,6 @@ const NAV_TABS = [
 	{ id: "products", label: "Products" },
 	{ id: "categories", label: "Categories" },
 	{ id: "orders", label: "Orders" },
-	{ id: "customers", label: "Customers" },
 	{ id: "coupons", label: "Coupons" },
 	{ id: "settings", label: "Settings" },
 ];
