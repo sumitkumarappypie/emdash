@@ -13,14 +13,6 @@ module.exports = function (api) {
 					},
 				},
 			],
-			// Tamagui extracts styles at compile time for performance
-			[
-				"@tamagui/babel-plugin",
-				{
-					components: ["tamagui"],
-					config: "./lib/tamagui.config.ts",
-				},
-			],
 		],
 	};
 };
