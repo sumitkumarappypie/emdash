@@ -7,10 +7,12 @@ import { useTheme } from "@/providers/ThemeProvider";
 
 interface ContentItem {
 	id: string;
-	title: string;
 	slug: string;
 	status: string;
-	created_at: string;
+	createdAt: string;
+	data: {
+		title?: string;
+	};
 }
 
 export default function HomeScreen() {
@@ -43,9 +45,9 @@ export default function HomeScreen() {
 					<Text style={[styles.sectionTitle, { color: theme.text }]}>Pages</Text>
 					{pages.items.map((page) => (
 						<View key={page.id} style={[styles.card, { backgroundColor: theme.surface }]}>
-							<Text style={[styles.cardTitle, { color: theme.text }]}>{page.title}</Text>
+							<Text style={[styles.cardTitle, { color: theme.text }]}>{page.data.title ?? page.slug}</Text>
 							<Text style={[styles.cardDate, { color: theme.textMuted }]}>
-								{new Date(page.created_at).toLocaleDateString()}
+								{new Date(page.createdAt).toLocaleDateString()}
 							</Text>
 						</View>
 					))}
@@ -57,9 +59,9 @@ export default function HomeScreen() {
 					<Text style={[styles.sectionTitle, { color: theme.text }]}>Recent Posts</Text>
 					{posts.items.map((post) => (
 						<View key={post.id} style={[styles.card, { backgroundColor: theme.surface }]}>
-							<Text style={[styles.cardTitle, { color: theme.text }]}>{post.title}</Text>
+							<Text style={[styles.cardTitle, { color: theme.text }]}>{post.data.title ?? post.slug}</Text>
 							<Text style={[styles.cardDate, { color: theme.textMuted }]}>
-								{new Date(post.created_at).toLocaleDateString()}
+								{new Date(post.createdAt).toLocaleDateString()}
 							</Text>
 						</View>
 					))}
