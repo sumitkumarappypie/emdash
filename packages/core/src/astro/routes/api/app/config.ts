@@ -18,9 +18,11 @@ export const GET: APIRoute = async ({ locals }) => {
 		// Get site settings for name/url
 		const settings = await getSiteSettingsWithDb(emdash.db);
 
-		// Get active plugins with mobile config
+		// Get enabled plugins with mobile config
 		const allPlugins = emdash.configuredPlugins ?? [];
-		const plugins = allPlugins.map((p) => ({
+		const plugins = allPlugins
+			.filter((p) => typeof emdash.isPluginEnabled === "function" ? emdash.isPluginEnabled(p.id) : true)
+			.map((p) => ({
 			id: p.id,
 			name: p.admin?.displayName ?? p.id,
 			version: p.version,

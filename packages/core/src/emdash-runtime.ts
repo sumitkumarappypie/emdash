@@ -2089,7 +2089,7 @@ export class EmDashRuntime {
 		return fragments;
 	}
 
-	private isPluginEnabled(pluginId: string): boolean {
+	isPluginEnabled(pluginId: string): boolean {
 		const status = this.pluginStates.get(pluginId);
 		return status === undefined || status === "active";
 	}
