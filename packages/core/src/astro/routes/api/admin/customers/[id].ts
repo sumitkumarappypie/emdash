@@ -15,7 +15,7 @@ import { z } from "zod";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 
-import { CustomerRepository } from "../../../../database/repositories/customer.js";
+import { CustomerRepository } from "#db/repositories/customer.js";
 
 /**
  * Get a single customer.

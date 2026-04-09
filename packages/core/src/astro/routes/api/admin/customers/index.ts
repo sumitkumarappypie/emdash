@@ -13,7 +13,7 @@ import { z } from "zod";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 
-import { CustomerRepository } from "../../../../database/repositories/customer.js";
+import { CustomerRepository } from "#db/repositories/customer.js";
 
 const listQuery = z.object({
 	search: z.string().optional(),
