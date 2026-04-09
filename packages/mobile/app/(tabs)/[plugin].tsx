@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -16,6 +16,17 @@ export default function PluginTabScreen() {
 	const { config } = useConfig();
 	const { setActivePlugin, updatePluginBadge } = usePlugin();
 	const router = useRouter();
+
+	// Pending login promise — resolved when auth state changes after login
+	const loginResolveRef = useRef<((success: boolean) => void) | null>(null);
+
+	// Resolve pending login when token changes
+	useEffect(() => {
+		if (token && loginResolveRef.current) {
+			loginResolveRef.current(true);
+			loginResolveRef.current = null;
+		}
+	}, [token]);
 
 	// Find which plugin owns this screen
 	const ownerPlugin = config?.plugins.find((p) =>
@@ -39,6 +50,21 @@ export default function PluginTabScreen() {
 	const goBack = useCallback(() => {
 		router.back();
 	}, [router]);
+
+	const requestLogin = useCallback((): Promise<boolean> => {
+		if (token) return Promise.resolve(true);
+		return new Promise((resolve) => {
+			loginResolveRef.current = resolve;
+			router.push("/login" as any);
+			// Timeout after 2 minutes — user abandoned login
+			setTimeout(() => {
+				if (loginResolveRef.current === resolve) {
+					loginResolveRef.current = null;
+					resolve(false);
+				}
+			}, 120_000);
+		});
+	}, [token, router]);
 
 	const handleUpdateCartBadge = useCallback(
 		(count: number) => {
@@ -74,6 +100,7 @@ export default function PluginTabScreen() {
 				goBack={goBack}
 				params={{}}
 				authToken={token}
+				requestLogin={requestLogin}
 				updateCartBadge={handleUpdateCartBadge}
 			/>
 		</ErrorBoundary>

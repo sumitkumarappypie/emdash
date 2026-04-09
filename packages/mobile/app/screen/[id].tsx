@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -18,6 +18,16 @@ export default function PluginScreen() {
 	const { updatePluginBadge } = usePlugin();
 	const router = useRouter();
 
+	// Pending login promise — resolved when auth state changes after login
+	const loginResolveRef = useRef<((success: boolean) => void) | null>(null);
+
+	useEffect(() => {
+		if (token && loginResolveRef.current) {
+			loginResolveRef.current(true);
+			loginResolveRef.current = null;
+		}
+	}, [token]);
+
 	// Find owner plugin from screen ID prefix (e.g., "commerce:cart" → "commerce")
 	const pluginId = screenId?.split(":")[0];
 	const ownerPlugin = config?.plugins.find((p) => p.id === pluginId);
@@ -33,6 +43,20 @@ export default function PluginScreen() {
 	const goBack = useCallback(() => {
 		router.back();
 	}, [router]);
+
+	const requestLogin = useCallback((): Promise<boolean> => {
+		if (token) return Promise.resolve(true);
+		return new Promise((resolve) => {
+			loginResolveRef.current = resolve;
+			router.push("/login" as any);
+			setTimeout(() => {
+				if (loginResolveRef.current === resolve) {
+					loginResolveRef.current = null;
+					resolve(false);
+				}
+			}, 120_000);
+		});
+	}, [token, router]);
 
 	const handleUpdateCartBadge = useCallback(
 		(count: number) => {
@@ -68,6 +92,7 @@ export default function PluginScreen() {
 				goBack={goBack}
 				params={screenParams as Record<string, string>}
 				authToken={token}
+				requestLogin={requestLogin}
 				updateCartBadge={handleUpdateCartBadge}
 			/>
 		</ErrorBoundary>
