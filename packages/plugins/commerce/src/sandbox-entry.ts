@@ -62,27 +62,6 @@ interface RouteCtx {
 	input: Record<string, unknown>;
 }
 
-async function buildAdminPage(page: string, ctx: PluginContext) {
-	const path = page.replace(/^\//, "") || "dashboard";
-
-	switch (path) {
-		case "dashboard":
-			return buildDashboard(ctx);
-		case "products":
-			return buildProductList(ctx);
-		case "categories":
-			return buildCategoryPage(ctx);
-		case "orders":
-			return buildOrderList(ctx);
-		case "coupons":
-			return buildCouponList(ctx);
-		case "settings":
-			return buildSettingsPage(ctx);
-		default:
-			return buildDashboard(ctx);
-	}
-}
-
 export default definePlugin({
 	mobile: {
 		native: true,
@@ -739,8 +718,6 @@ export default definePlugin({
 								return withNav("orders", buildOrderList);
 							case "categories":
 								return withNav("categories", buildCategoryPage);
-							case "customers":
-								return withNav("customers", buildCustomerList);
 							case "coupons":
 								return withNav("coupons", buildCouponList);
 							case "settings":
