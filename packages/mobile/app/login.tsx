@@ -7,21 +7,27 @@ import { useTheme } from "@/providers/ThemeProvider";
 
 export default function LoginScreen() {
 	const theme = useTheme();
-	const { login } = useAuth();
+	const { login, register } = useAuth();
 	const router = useRouter();
+	const [isRegister, setIsRegister] = useState(false);
+	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
 
-	const handleLogin = async () => {
+	const handleSubmit = async () => {
 		setError("");
 		setLoading(true);
 		try {
-			await login(email, password);
+			if (isRegister) {
+				await register(email, name, password);
+			} else {
+				await login(email, password);
+			}
 			router.back();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Login failed");
+			setError(err instanceof Error ? err.message : "Authentication failed");
 		} finally {
 			setLoading(false);
 		}
@@ -29,8 +35,20 @@ export default function LoginScreen() {
 
 	return (
 		<View style={[styles.container, { backgroundColor: theme.background }]}>
-			<Text style={[styles.heading, { color: theme.text }]}>Sign In</Text>
+			<Text style={[styles.heading, { color: theme.text }]}>
+				{isRegister ? "Create Account" : "Sign In"}
+			</Text>
 
+			{isRegister && (
+				<TextInput
+					style={[styles.input, { color: theme.text, backgroundColor: theme.surface }]}
+					placeholder="Name"
+					placeholderTextColor={theme.textMuted}
+					value={name}
+					onChangeText={setName}
+					autoCapitalize="words"
+				/>
+			)}
 			<TextInput
 				style={[styles.input, { color: theme.text, backgroundColor: theme.surface }]}
 				placeholder="Email"
@@ -53,10 +71,24 @@ export default function LoginScreen() {
 
 			<Pressable
 				style={[styles.button, { backgroundColor: theme.primary, opacity: loading ? 0.6 : 1 }]}
-				onPress={handleLogin}
+				onPress={handleSubmit}
 				disabled={loading}
 			>
-				<Text style={styles.buttonText}>{loading ? "Signing in..." : "Sign In"}</Text>
+				<Text style={styles.buttonText}>
+					{loading
+						? isRegister
+							? "Creating account..."
+							: "Signing in..."
+						: isRegister
+							? "Create Account"
+							: "Sign In"}
+				</Text>
+			</Pressable>
+
+			<Pressable onPress={() => { setIsRegister(!isRegister); setError(""); }}>
+				<Text style={[styles.toggle, { color: theme.primary }]}>
+					{isRegister ? "Already have an account? Sign In" : "Don't have an account? Register"}
+				</Text>
 			</Pressable>
 		</View>
 	);
@@ -69,4 +101,5 @@ const styles = StyleSheet.create({
 	error: { fontSize: 14, textAlign: "center" },
 	button: { borderRadius: 10, padding: 16, alignItems: "center", marginTop: 8 },
 	buttonText: { color: "#fff", fontSize: 17, fontWeight: "700" },
+	toggle: { fontSize: 14, textAlign: "center", marginTop: 8 },
 });
