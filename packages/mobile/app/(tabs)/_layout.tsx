@@ -71,20 +71,27 @@ export default function TabLayout() {
 				}}
 			/>
 
-			{/* Plugin tabs — dynamic from config */}
-			{pluginTabs.map((tab) => (
+			{/* Plugin tabs — dynamic from config, hidden when no plugins */}
+			{pluginTabs.length > 0 ? (
+				pluginTabs.map((tab) => (
+					<Tabs.Screen
+						key={tab.key}
+						name={`[plugin]`}
+						options={{
+							title: tab.label,
+							tabBarIcon: ({ color }) => (
+								<FontAwesome name={getIcon(tab.icon)} size={22} color={color} />
+							),
+							href: { pathname: "/(tabs)/[plugin]", params: { plugin: tab.screen } },
+						}}
+					/>
+				))
+			) : (
 				<Tabs.Screen
-					key={tab.key}
-					name={`[plugin]`}
-					options={{
-						title: tab.label,
-						tabBarIcon: ({ color }) => (
-							<FontAwesome name={getIcon(tab.icon)} size={22} color={color} />
-						),
-						href: { pathname: "/(tabs)/[plugin]", params: { plugin: tab.screen } },
-					}}
+					name="[plugin]"
+					options={{ href: null }}
 				/>
-			))}
+			)}
 
 			{/* Account tab — always last */}
 			<Tabs.Screen
