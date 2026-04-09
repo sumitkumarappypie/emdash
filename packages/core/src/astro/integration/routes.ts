@@ -396,6 +396,17 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/themes/preview.ts"),
 	});
 
+	// Customer management (admin)
+	injectRoute({
+		pattern: "/_emdash/api/admin/customers",
+		entrypoint: resolveRoute("api/admin/customers/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/customers/[id]",
+		entrypoint: resolveRoute("api/admin/customers/[id].ts"),
+	});
+
 	// User management routes
 	injectRoute({
 		pattern: "/_emdash/api/admin/users",
