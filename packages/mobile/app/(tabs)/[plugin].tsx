@@ -41,8 +41,10 @@ export default function PluginTabScreen() {
 
 	const navigate = useCallback(
 		(screen: string, params?: Record<string, string>) => {
-			const query = params ? `?${new URLSearchParams(params).toString()}` : "";
-			router.push(`/screen/${screen}${query}` as any);
+			router.push({
+				pathname: "/screen/[id]",
+				params: { id: screen, ...params },
+			} as any);
 		},
 		[router],
 	);

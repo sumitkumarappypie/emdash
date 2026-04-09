@@ -34,8 +34,10 @@ export default function PluginScreen() {
 
 	const navigate = useCallback(
 		(screen: string, navParams?: Record<string, string>) => {
-			const query = navParams ? `?${new URLSearchParams(navParams).toString()}` : "";
-			router.push(`/screen/${screen}${query}` as any);
+			router.push({
+				pathname: "/screen/[id]",
+				params: { id: screen, ...navParams },
+			} as any);
 		},
 		[router],
 	);
