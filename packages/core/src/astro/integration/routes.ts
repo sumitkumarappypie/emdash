@@ -758,6 +758,12 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/admin/app-branding.ts"),
 	});
 
+	// Build trigger admin route (dispatches GitHub Actions workflow)
+	injectRoute({
+		pattern: "/_emdash/api/admin/app-build",
+		entrypoint: resolveRoute("api/admin/app-build.ts"),
+	});
+
 	// Mobile app config (public — no admin auth, unauthenticated GET)
 	injectRoute({
 		pattern: "/_emdash/api/app/config",
