@@ -385,6 +385,22 @@ export interface SectionTable {
 	updated_at: Generated<string>;
 }
 
+// App Branding
+
+export interface AppBrandingTable {
+	id: string;
+	app_name: string;
+	app_slug: string;
+	ios_bundle: string;
+	android_package: string;
+	scheme: string;
+	icon_url: string | null;
+	splash_url: string | null;
+	splash_bg_color: string;
+	accent_color: string;
+	updated_at: Generated<string>;
+}
+
 // Database schema
 // Note: ec_* content tables are dynamic and not part of this type
 export interface Database {
@@ -428,6 +444,7 @@ export interface Database {
 	_emdash_customers: CustomersTable;
 	_emdash_customer_sessions: CustomerSessionsTable;
 	_emdash_push_devices: PushDevicesTable;
+	_emdash_app_branding: AppBrandingTable;
 }
 
 export type MediaRow = {

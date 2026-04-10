@@ -752,10 +752,22 @@ export function injectCoreRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/push/register.ts"),
 	});
 
+	// App branding admin route
+	injectRoute({
+		pattern: "/_emdash/api/admin/app-branding",
+		entrypoint: resolveRoute("api/admin/app-branding.ts"),
+	});
+
 	// Mobile app config (public — no admin auth, unauthenticated GET)
 	injectRoute({
 		pattern: "/_emdash/api/app/config",
 		entrypoint: resolveRoute("api/app/config.ts"),
+	});
+
+	// Build config (authenticated via bearer token, for CI/CD pipelines)
+	injectRoute({
+		pattern: "/_emdash/api/app/build-config",
+		entrypoint: resolveRoute("api/app/build-config.ts"),
 	});
 
 	// Public content API (no auth required — published content only)

@@ -75,7 +75,7 @@ describeEachDialect("Migrations", (dialect) => {
 
 		const migrations = await ctx.db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(33);
+		expect(migrations).toHaveLength(34);
 		expect(migrations[0]?.name).toBe("001_initial");
 	});
 
@@ -85,7 +85,7 @@ describeEachDialect("Migrations", (dialect) => {
 
 		const migrations = await ctx.db.selectFrom("_emdash_migrations").selectAll().execute();
 
-		expect(migrations).toHaveLength(33);
+		expect(migrations).toHaveLength(34);
 	});
 
 	it("reports correct migration status", async () => {

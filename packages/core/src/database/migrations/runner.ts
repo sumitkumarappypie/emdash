@@ -35,6 +35,7 @@ import * as m031 from "./031_bylines.js";
 import * as m032 from "./032_rate_limits.js";
 import * as m033 from "./033_customers.js";
 import * as m034 from "./034_push_devices.js";
+import * as m035 from "./035_app_branding.js";
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -76,6 +77,7 @@ class StaticMigrationProvider implements MigrationProvider {
 			"032_rate_limits": m032,
 			"033_customers": m033,
 			"034_push_devices": m034,
+			"035_app_branding": m035,
 		};
 	}
 }
