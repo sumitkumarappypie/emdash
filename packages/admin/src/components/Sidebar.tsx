@@ -16,6 +16,7 @@ import {
 	UsersThree,
 	Stack,
 	ArrowsLeftRight,
+	DeviceMobile,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
@@ -217,6 +218,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	adminItems.push(
 		{ to: "/import/wordpress", label: "Import", icon: Upload, minRole: ROLE_ADMIN },
+		{ to: "/app-settings", label: "Mobile App", icon: DeviceMobile, minRole: ROLE_ADMIN },
 		{ to: "/settings", label: "Settings", icon: Gear, minRole: ROLE_ADMIN },
 	);
 

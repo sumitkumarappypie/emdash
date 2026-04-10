@@ -109,6 +109,7 @@ import {
 } from "./lib/api/comments";
 import { usePluginPage } from "./lib/plugin-context";
 import { sanitizeRedirectUrl } from "./lib/url";
+import { AppSettingsPage } from "./routes/app-settings";
 import { BylinesPage } from "./routes/bylines";
 import { CustomersPage } from "./routes/customers";
 import { UsersPage } from "./routes/users";
@@ -1273,6 +1274,13 @@ const customersRoute = createRoute({
 	component: CustomersPage,
 });
 
+// App Settings route (Mobile App branding + builds)
+const appSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/app-settings",
+	component: AppSettingsPage,
+});
+
 // Content Types routes
 const contentTypesListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -1525,6 +1533,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	usersRoute,
 	bylinesRoute,
 	customersRoute,
+	appSettingsRoute,
 	widgetsRoute,
 	settingsRoute,
 	generalSettingsRoute,
