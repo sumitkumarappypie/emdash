@@ -332,6 +332,14 @@ export interface EmDashHandlers {
 	// Check if a plugin is enabled (active) — used by /app/config to filter disabled plugins
 	isPluginEnabled: (pluginId: string) => boolean;
 
+	// Get all plugins (configured + marketplace) with mobile-relevant metadata
+	getAllMobilePlugins: () => Array<{
+		id: string;
+		name: string;
+		version: string;
+		mobile?: import("../plugins/types.js").PluginMobileConfig;
+	}>;
+
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;
 

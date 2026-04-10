@@ -349,6 +349,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				email: runtime.email,
 				configuredPlugins: runtime.configuredPlugins,
 				isPluginEnabled: runtime.isPluginEnabled.bind(runtime),
+				getAllMobilePlugins: runtime.getAllMobilePlugins.bind(runtime),
 
 				// Configuration (for checking database type, auth mode, etc.)
 				config,

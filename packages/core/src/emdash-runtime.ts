@@ -30,6 +30,7 @@ import type {
 	MediaItem,
 	PluginManifest,
 	PluginCapability,
+	PluginMobileConfig,
 	PluginStorageConfig,
 	PublicPageContext,
 	PageMetadataContribution,
@@ -241,13 +242,14 @@ let dbInitPromise: Promise<Kysely<Database>> | null = null;
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPlugin>();
 const marketplacePluginKeys = new Set<string>();
-/** Manifest metadata for marketplace plugins: pluginId -> manifest admin config */
+/** Manifest metadata for marketplace plugins: pluginId -> manifest admin/mobile config */
 const marketplaceManifestCache = new Map<
 	string,
 	{
 		id: string;
 		version: string;
 		admin?: { pages?: PluginAdminPage[]; widgets?: PluginDashboardWidget[] };
+		mobile?: PluginMobileConfig;
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -529,11 +531,12 @@ export class EmDashRuntime {
 				this.sandboxedPlugins.set(key, loaded);
 				marketplacePluginKeys.add(key);
 
-				// Cache manifest admin config for getManifest()
+				// Cache manifest admin + mobile config for getManifest() and getAllMobilePlugins()
 				marketplaceManifestCache.set(pluginId, {
 					id: bundle.manifest.id,
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
+					mobile: bundle.manifest.mobile,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -1055,11 +1058,12 @@ export class EmDashRuntime {
 					cache.set(pluginKey, loaded);
 					marketplacePluginKeys.add(pluginKey);
 
-					// Cache manifest admin config for getManifest()
+					// Cache manifest admin + mobile config for getManifest() and getAllMobilePlugins()
 					marketplaceManifestCache.set(plugin.pluginId, {
 						id: bundle.manifest.id,
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
+						mobile: bundle.manifest.mobile,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2092,5 +2096,51 @@ export class EmDashRuntime {
 	isPluginEnabled(pluginId: string): boolean {
 		const status = this.pluginStates.get(pluginId);
 		return status === undefined || status === "active";
+	}
+
+	/**
+	 * Get all plugins (configured + marketplace) mapped to mobile-relevant metadata.
+	 *
+	 * Used by /app/config to include marketplace-installed plugins that have
+	 * mobile config in their manifest alongside trusted configured plugins.
+	 */
+	getAllMobilePlugins(): Array<{
+		id: string;
+		name: string;
+		version: string;
+		mobile?: PluginMobileConfig;
+	}> {
+		const result: Array<{
+			id: string;
+			name: string;
+			version: string;
+			mobile?: PluginMobileConfig;
+		}> = [];
+		const seen = new Set<string>();
+
+		// Configured (trusted/in-process) plugins
+		for (const p of this.configuredPlugins) {
+			seen.add(p.id);
+			result.push({
+				id: p.id,
+				name: p.id,
+				version: p.version,
+				mobile: p.mobile,
+			});
+		}
+
+		// Marketplace-installed plugins from manifest cache
+		for (const [pluginId, meta] of marketplaceManifestCache) {
+			if (seen.has(pluginId)) continue;
+			seen.add(pluginId);
+			result.push({
+				id: pluginId,
+				name: pluginId,
+				version: meta.version,
+				mobile: meta.mobile,
+			});
+		}
+
+		return result;
 	}
 }
