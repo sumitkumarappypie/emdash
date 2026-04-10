@@ -68,6 +68,8 @@ export const GET: APIRoute = async ({ request, locals }) => {
 				id: p.id,
 				name: p.name,
 				version: p.version,
+				native: p.mobile?.native ?? false,
+				entryUrl: p.mobile?.entryUrl,
 			}));
 
 		return Response.json({
