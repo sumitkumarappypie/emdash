@@ -1126,6 +1126,9 @@ importers:
 
   packages/mobile:
     dependencies:
+      '@emdash-cms/plugin-commerce':
+        specifier: workspace:*
+        version: link:../plugins/commerce
       '@expo/vector-icons':
         specifier: ~14.0.4
         version: 14.0.4
