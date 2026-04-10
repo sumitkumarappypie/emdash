@@ -58,7 +58,7 @@ jobs:
           path: |
             packages/mobile/lib/registry.ts
             packages/mobile/.env.build
-            packages/mobile/.plugins/
+            packages/mobile/_plugins/
 
   build-android:
     needs: generate

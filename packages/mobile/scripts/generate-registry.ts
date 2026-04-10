@@ -2,7 +2,7 @@
  * Registry Generator
  *
  * Called by the CI build pipeline to generate lib/registry.ts.
- * Copies plugin mobile source files into .plugins/ (inside the project)
+ * Copies plugin mobile source files into _plugins/ (inside the project)
  * so Metro can find and hash them without symlink issues.
  *
  * Usage: npx tsx scripts/generate-registry.ts
@@ -68,7 +68,7 @@ async function main() {
 
 	const mobileDir = resolve(__dirname, "..");
 	const monorepoRoot = resolve(mobileDir, "../..");
-	const pluginsDir = join(mobileDir, ".plugins");
+	const pluginsDir = join(mobileDir, "_plugins");
 
 	// Clean previous plugin extracts
 	if (existsSync(pluginsDir)) rmSync(pluginsDir, { recursive: true });
@@ -96,7 +96,7 @@ async function main() {
 			rmSync(tgzPath);
 			console.log(`  Extracted marketplace mobile source`);
 		} else {
-			// Workspace plugin — copy source files directly into .plugins/
+			// Workspace plugin — copy source files directly into _plugins/
 			// This avoids all symlink/hoisting issues with Metro's file watcher
 			const workspaceMobileDir = join(
 				monorepoRoot,
@@ -113,7 +113,7 @@ async function main() {
 		}
 	}
 
-	// Always generate registry.ts — all plugins import from .plugins/
+	// Always generate registry.ts — all plugins import from _plugins/
 	const imports: string[] = [];
 	const spreads: string[] = [];
 	const initCases: string[] = [];
@@ -125,9 +125,9 @@ async function main() {
 		const alias = plugin.id.replace(DASH_RE, "_");
 		const capAlias = capitalize(alias);
 
-		// All plugins import from .plugins/ — consistent, no symlinks
+		// All plugins import from _plugins/ — consistent, no symlinks
 		imports.push(
-			`import { screens as ${alias}Screens, configure${capAlias}Api } from "../.plugins/${plugin.id}/index";`,
+			`import { screens as ${alias}Screens, configure${capAlias}Api } from "../_plugins/${plugin.id}/index";`,
 		);
 		spreads.push(`\t...${alias}Screens,`);
 		initCases.push(
