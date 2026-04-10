@@ -31,26 +31,9 @@ const PINNED_MODULES = {
 	"react/jsx-dev-runtime": require.resolve("react/jsx-dev-runtime", { paths: [projectRoot] }),
 };
 
-// Resolve workspace plugin mobile entries via require.resolve so Metro
-// gets paths through node_modules that its file watcher already indexes.
-// Direct absolute paths to source files cause SHA-1 errors because Metro's
-// watcher doesn't track them even when they're under watchFolders.
-const PLUGIN_MOBILE_ENTRIES = {};
-try {
-	PLUGIN_MOBILE_ENTRIES["@emdash-cms/plugin-commerce/mobile"] = require.resolve(
-		"@emdash-cms/plugin-commerce/mobile",
-		{ paths: [projectRoot, monorepoRoot] },
-	);
-} catch {
-	// Plugin not installed — skip
-}
-
 config.resolver.resolveRequest = (context, moduleName, platform) => {
 	if (PINNED_MODULES[moduleName]) {
 		return { filePath: PINNED_MODULES[moduleName], type: "sourceFile" };
-	}
-	if (PLUGIN_MOBILE_ENTRIES[moduleName]) {
-		return { filePath: PLUGIN_MOBILE_ENTRIES[moduleName], type: "sourceFile" };
 	}
 	return context.resolveRequest(context, moduleName, platform);
 };
