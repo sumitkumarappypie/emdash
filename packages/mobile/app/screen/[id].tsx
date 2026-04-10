@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { WebViewScreen } from "@/components/WebViewScreen";
 import { getScreen } from "@/lib/registry";
 import { useAuth } from "@/providers/AuthProvider";
 import { useConfig } from "@/providers/ConfigProvider";
@@ -79,6 +80,18 @@ export default function PluginScreen() {
 
 	const Screen = getScreen(screenId);
 	if (!Screen) {
+		if (ownerPlugin && !ownerPlugin.mobile?.native && ownerPlugin.mobile?.entryUrl) {
+			return (
+				<WebViewScreen
+					entryUrl={ownerPlugin.mobile.entryUrl}
+					pluginId={ownerPlugin.id}
+					screen={screenId}
+					params={screenParams as Record<string, string>}
+					onNavigate={navigate}
+				/>
+			);
+		}
+
 		return (
 			<View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
 				<Text style={{ color: theme.textMuted }}>Screen not found: {screenId}</Text>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { WebViewScreen } from "@/components/WebViewScreen";
 import { getScreen } from "@/lib/registry";
 import { useAuth } from "@/providers/AuthProvider";
 import { useConfig } from "@/providers/ConfigProvider";
@@ -87,6 +88,24 @@ export default function PluginTabScreen() {
 
 	const Screen = getScreen(screenId);
 	if (!Screen) {
+		const webViewPlugin = config?.plugins.find(
+			(p) =>
+				!p.mobile?.native &&
+				p.mobile?.entryUrl &&
+				p.mobile?.tabs?.some((t) => t.screen === screenId),
+		);
+
+		if (webViewPlugin?.mobile?.entryUrl) {
+			return (
+				<WebViewScreen
+					entryUrl={webViewPlugin.mobile.entryUrl}
+					pluginId={webViewPlugin.id}
+					screen={screenId}
+					onNavigate={navigate}
+				/>
+			);
+		}
+
 		return (
 			<View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
 				<Text style={{ color: theme.textMuted }}>Screen not found: {screenId}</Text>
