@@ -76,6 +76,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const branding = await brandingRepo.get();
 		const settings = await getSiteSettingsWithDb(emdash.db);
 
+		// Fall back to request origin if site URL not configured
+		const siteUrl = settings.url || new URL(request.url).origin;
+
 		const response = await fetch(
 			`https://api.github.com/repos/${ghRepo}/actions/workflows/build-mobile.yml/dispatches`,
 			{
@@ -92,7 +95,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 						app_name: branding.appName,
 						android_package: branding.androidPackage,
 						ios_bundle: branding.iosBundle,
-						emdash_url: settings.url ?? "",
+						emdash_url: siteUrl,
 						platform,
 					},
 				}),
