@@ -31,9 +31,22 @@ const PINNED_MODULES = {
 	"react/jsx-dev-runtime": require.resolve("react/jsx-dev-runtime", { paths: [projectRoot] }),
 };
 
+// Resolve workspace plugin mobile entries to absolute paths.
+// The babel alias + Metro relative path resolution breaks for files in subdirectories.
+// Using resolveRequest with absolute paths works regardless of the importing file's location.
+const PLUGIN_MOBILE_ENTRIES = {
+	"@emdash-cms/plugin-commerce/mobile": path.resolve(
+		monorepoRoot,
+		"packages/plugins/commerce/src/mobile/index.ts",
+	),
+};
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
 	if (PINNED_MODULES[moduleName]) {
 		return { filePath: PINNED_MODULES[moduleName], type: "sourceFile" };
+	}
+	if (PLUGIN_MOBILE_ENTRIES[moduleName]) {
+		return { filePath: PLUGIN_MOBILE_ENTRIES[moduleName], type: "sourceFile" };
 	}
 	return context.resolveRequest(context, moduleName, platform);
 };
