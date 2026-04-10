@@ -1,11 +1,18 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useMemo,
+	useState,
+	type ReactNode,
+} from "react";
 
 import { getBaseUrl, getAuthToken } from "@/lib/api";
-import { useConfig } from "./ConfigProvider";
+import { initializePlugin } from "@/lib/registry";
 import type { AppPlugin } from "@/lib/types";
 
-// Import plugin initializers
-import { configureCommerceApi } from "@emdash-cms/plugin-commerce/mobile";
+import { useConfig } from "./ConfigProvider";
 
 interface PluginState {
 	cartBadge: number;
@@ -41,10 +48,9 @@ export function PluginProvider({ children }: { children: ReactNode }) {
 		const baseUrl = getBaseUrl();
 
 		for (const plugin of config.plugins) {
-			if (plugin.id === "commerce" && plugin.mobile?.native) {
-				configureCommerceApi({ baseUrl, getAuthToken: () => getAuthToken() });
+			if (plugin.mobile?.native) {
+				initializePlugin(plugin.id, baseUrl, () => getAuthToken());
 			}
-			// Future plugins: add similar initialization here
 		}
 	}, [config]);
 

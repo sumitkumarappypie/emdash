@@ -1,6 +1,9 @@
+import {
+	screens as commerceScreens,
+	configureCommerceApi,
+	type PluginScreenProps,
+} from "@emdash-cms/plugin-commerce/mobile";
 import type { ComponentType } from "react";
-
-import { screens as commerceScreens, type PluginScreenProps } from "@emdash-cms/plugin-commerce/mobile";
 
 export type { PluginScreenProps } from "@emdash-cms/plugin-commerce/mobile";
 
@@ -10,4 +13,12 @@ const screenRegistry: Record<string, ComponentType<PluginScreenProps>> = {
 
 export function getScreen(id: string): ComponentType<PluginScreenProps> | undefined {
 	return screenRegistry[id];
+}
+
+export function initializePlugin(
+	pluginId: string,
+	baseUrl: string,
+	getAuthToken: () => string | null,
+): void {
+	if (pluginId === "commerce") configureCommerceApi({ baseUrl, getAuthToken });
 }
