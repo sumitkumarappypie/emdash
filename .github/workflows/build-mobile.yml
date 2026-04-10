@@ -27,8 +27,40 @@ on:
           - ios
           - both
 
+env:
+  EXPO_PUBLIC_EMDASH_URL: ${{ inputs.emdash_url }}
+  EMDASH_BUILD_TOKEN: ${{ secrets.EMDASH_BUILD_TOKEN }}
+  APP_NAME: ${{ inputs.app_name }}
+  APP_ANDROID_PACKAGE: ${{ inputs.android_package }}
+  APP_IOS_BUNDLE: ${{ inputs.ios_bundle }}
+
 jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - run: pnpm install
+
+      - name: Generate registry and branding
+        working-directory: packages/mobile
+        run: npx tsx scripts/generate-registry.ts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-files
+          path: |
+            packages/mobile/lib/registry.ts
+            packages/mobile/.env.build
+            packages/mobile/.plugins/
+
   build-android:
+    needs: generate
     if: ${{ inputs.platform == 'android' || inputs.platform == 'both' }}
     runs-on: ubuntu-latest
     steps:
@@ -43,14 +75,22 @@ jobs:
           distribution: "zulu"
           java-version: "17"
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: generated-files
+          path: packages/mobile/
+
       - run: pnpm install
+
+      - name: Load build env
+        working-directory: packages/mobile
+        run: |
+          if [ -f .env.build ]; then
+            set -a && source .env.build && set +a
+          fi
 
       - name: Prebuild Android
         working-directory: packages/mobile
-        env:
-          APP_NAME: ${{ inputs.app_name }}
-          APP_ANDROID_PACKAGE: ${{ inputs.android_package }}
-          EXPO_PUBLIC_EMDASH_URL: ${{ inputs.emdash_url }}
         run: npx expo prebuild --platform android --clean
 
       - name: Build APK
@@ -63,6 +103,7 @@ jobs:
           path: packages/mobile/android/app/build/outputs/apk/release/*.apk
 
   build-ios:
+    needs: generate
     if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
     runs-on: macos-latest
     steps:
@@ -73,14 +114,22 @@ jobs:
           node-version: "20"
           cache: "pnpm"
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: generated-files
+          path: packages/mobile/
+
       - run: pnpm install
+
+      - name: Load build env
+        working-directory: packages/mobile
+        run: |
+          if [ -f .env.build ]; then
+            set -a && source .env.build && set +a
+          fi
 
       - name: Prebuild iOS
         working-directory: packages/mobile
-        env:
-          APP_NAME: ${{ inputs.app_name }}
-          APP_IOS_BUNDLE: ${{ inputs.ios_bundle }}
-          EXPO_PUBLIC_EMDASH_URL: ${{ inputs.emdash_url }}
         run: npx expo prebuild --platform ios --clean
 
       - name: Build IPA
