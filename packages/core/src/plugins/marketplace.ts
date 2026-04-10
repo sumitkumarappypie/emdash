@@ -167,6 +167,9 @@ export interface MarketplaceClient {
 	/** Download and extract a plugin bundle */
 	downloadBundle(id: string, version: string): Promise<PluginBundle>;
 
+	/** Download mobile bundle for a plugin version (returns null if none exists) */
+	downloadMobileBundle(id: string, version: string): Promise<ArrayBuffer | null>;
+
 	/** Fire-and-forget install stat (never throws) */
 	reportInstall(id: string, version: string): Promise<void>;
 
@@ -267,6 +270,29 @@ class MarketplaceClientImpl implements MarketplaceClient {
 				"BUNDLE_EXTRACT_FAILED",
 			);
 		}
+	}
+
+	async downloadMobileBundle(id: string, version: string): Promise<ArrayBuffer | null> {
+		const url = `${this.baseUrl}/api/v1/plugins/${encodeURIComponent(id)}/versions/${encodeURIComponent(version)}/mobile`;
+
+		let response: Response;
+		try {
+			response = await fetch(url, { redirect: "follow" });
+		} catch (err) {
+			throw new MarketplaceUnavailableError(err);
+		}
+
+		if (response.status === 404) return null;
+
+		if (!response.ok) {
+			throw new MarketplaceError(
+				`Failed to download mobile bundle: ${response.status} ${response.statusText}`,
+				response.status,
+				"MOBILE_BUNDLE_DOWNLOAD_FAILED",
+			);
+		}
+
+		return response.arrayBuffer();
 	}
 
 	async reportInstall(id: string, version: string): Promise<void> {

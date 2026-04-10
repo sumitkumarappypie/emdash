@@ -478,6 +478,16 @@ authorRoutes.post("/plugins/:id/versions", async (c) => {
 			});
 		}
 
+		// Extract mobile.tgz if present in the bundle
+		const mobileTgz = files.get("mobile.tgz");
+		if (mobileTgz) {
+			await c.env.R2.put(
+				`plugin-bundles/${pluginId}/${validManifest.version}/mobile.tgz`,
+				mobileTgz,
+				{ httpMetadata: { contentType: "application/gzip" } },
+			);
+		}
+
 		// Read optional files
 		const readmeBytes = files.get("README.md");
 		const readme = readmeBytes ? new TextDecoder().decode(readmeBytes) : undefined;

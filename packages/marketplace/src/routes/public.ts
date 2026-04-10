@@ -234,6 +234,36 @@ publicRoutes.get("/plugins/:id/versions/:version/bundle", async (c) => {
 	}
 });
 
+// ── GET /plugins/:id/versions/:version/mobile — Mobile bundle download ─
+
+publicRoutes.get("/plugins/:id/versions/:version/mobile", async (c) => {
+	const pluginId = c.req.param("id");
+	const version = c.req.param("version");
+
+	try {
+		const versionRow = await getPluginVersion(c.env.DB, pluginId, version);
+		if (!versionRow) return c.json({ error: "Version not found" }, 404);
+		if (versionRow.status !== "published" && versionRow.status !== "flagged") {
+			return c.json({ error: "Version not found" }, 404);
+		}
+
+		const key = `plugin-bundles/${pluginId}/${version}/mobile.tgz`;
+		const object = await c.env.R2.get(key);
+		if (!object) return c.json({ error: "Mobile bundle not found" }, 404);
+
+		return new Response(object.body, {
+			headers: {
+				"Content-Type": "application/gzip",
+				"Content-Disposition": `attachment; filename="${pluginId}-${version}-mobile.tgz"`,
+				"Content-Length": String(object.size),
+			},
+		});
+	} catch (err) {
+		console.error("Failed to download mobile bundle:", err);
+		return c.json({ error: "Internal server error" }, 500);
+	}
+});
+
 // ── GET /plugins/:id/versions/:version/audit — Audit result ─────
 
 publicRoutes.get("/plugins/:id/versions/:version/audit", async (c) => {

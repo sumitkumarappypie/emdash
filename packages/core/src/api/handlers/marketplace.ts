@@ -270,7 +270,7 @@ async function deleteBundleFromR2(
 	validatePluginIdentifier(pluginId, "plugin ID");
 	validateVersion(version);
 	const prefix = `marketplace/${pluginId}/${version}`;
-	const files = ["manifest.json", "backend.js", "admin.js"];
+	const files = ["manifest.json", "backend.js", "admin.js", "mobile.tgz"];
 
 	for (const file of files) {
 		try {
@@ -409,6 +409,16 @@ export async function handleMarketplaceInstall(
 
 		// Store bundle in site-local R2
 		await storeBundleInR2(storage, pluginId, version, bundle);
+
+		// Download and store mobile bundle if available
+		const mobileBundle = await client.downloadMobileBundle(pluginId, version);
+		if (mobileBundle) {
+			await storage.upload({
+				key: `marketplace/${pluginId}/${version}/mobile.tgz`,
+				body: new Uint8Array(mobileBundle),
+				contentType: "application/gzip",
+			});
+		}
 
 		// Write plugin state
 		await stateRepo.upsert(pluginId, version, "active", {
@@ -616,6 +626,16 @@ export async function handleMarketplaceUpdate(
 
 		// Store new bundle
 		await storeBundleInR2(storage, pluginId, newVersion, bundle);
+
+		// Download and store mobile bundle if available
+		const mobileBundle = await client.downloadMobileBundle(pluginId, newVersion);
+		if (mobileBundle) {
+			await storage.upload({
+				key: `marketplace/${pluginId}/${newVersion}/mobile.tgz`,
+				body: new Uint8Array(mobileBundle),
+				contentType: "application/gzip",
+			});
+		}
 
 		// Update state
 		await stateRepo.upsert(pluginId, newVersion, "active", {
