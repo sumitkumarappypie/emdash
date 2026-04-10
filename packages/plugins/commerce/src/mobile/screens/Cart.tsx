@@ -1,6 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { fetchCart, updateCartItem, removeCartItem } from "../api/client";
 import type { CartItem } from "../api/types";
@@ -112,9 +112,7 @@ export default function CartScreen({ theme, navigate, updateCartBadge }: PluginS
 					<CartItemRow
 						item={item}
 						theme={theme}
-						onUpdateQuantity={(qty) =>
-							updateMutation.mutate({ itemId: item.id, quantity: qty })
-						}
+						onUpdateQuantity={(qty) => updateMutation.mutate({ itemId: item.id, quantity: qty })}
 						onRemove={() => removeMutation.mutate(item.id)}
 					/>
 				)}
@@ -147,7 +145,13 @@ const styles = StyleSheet.create({
 	itemName: { fontSize: 16, fontWeight: "600" },
 	itemPrice: { fontSize: 13, marginTop: 2 },
 	itemActions: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-	qtyButton: { width: 32, height: 32, borderRadius: 8, justifyContent: "center", alignItems: "center" },
+	qtyButton: {
+		width: 32,
+		height: 32,
+		borderRadius: 8,
+		justifyContent: "center",
+		alignItems: "center",
+	},
 	qty: { fontSize: 16, fontWeight: "600", marginHorizontal: 12 },
 	itemTotal: { fontSize: 16, fontWeight: "700", textAlign: "right" },
 	footer: { padding: 16, borderTopWidth: 1, gap: 12 },

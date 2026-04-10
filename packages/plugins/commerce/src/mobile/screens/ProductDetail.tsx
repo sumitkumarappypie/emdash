@@ -1,10 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { fetchProduct, addToCart, createCart, fetchCart } from "../api/client";
 import type { PluginScreenProps } from "../types";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const CART_STORAGE_KEY = "commerce_cart_id";
 
