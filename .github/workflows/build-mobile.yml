@@ -80,23 +80,7 @@ jobs:
           name: generated-files
           path: packages/mobile/
 
-      - name: Use hoisted node_modules for React Native
-        run: echo "node-linker=hoisted" >> .npmrc
-
       - run: pnpm install
-
-      - name: Debug node_modules layout
-        run: |
-          echo "=== Root node_modules/@emdash-cms ==="
-          ls -la node_modules/@emdash-cms/ 2>/dev/null || echo "NOT FOUND"
-          echo "=== Mobile node_modules/@emdash-cms ==="
-          ls -la packages/mobile/node_modules/@emdash-cms/ 2>/dev/null || echo "NOT FOUND"
-          echo "=== Commerce src/mobile ==="
-          ls -la node_modules/@emdash-cms/plugin-commerce/src/mobile/ 2>/dev/null || echo "NOT FOUND"
-          echo "=== Resolve test ==="
-          node -e "try { console.log(require.resolve('@emdash-cms/plugin-commerce/src/mobile/index', {paths:['packages/mobile']})) } catch(e) { console.log('FAIL:', e.message.split('\\n')[0]) }"
-          echo "=== registry.ts ==="
-          head -10 packages/mobile/lib/registry.ts
 
       - name: Load build env
         working-directory: packages/mobile
@@ -134,9 +118,6 @@ jobs:
         with:
           name: generated-files
           path: packages/mobile/
-
-      - name: Use hoisted node_modules for React Native
-        run: echo "node-linker=hoisted" >> .npmrc
 
       - run: pnpm install
 
