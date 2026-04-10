@@ -6,8 +6,8 @@
  */
 
 import { createWriteStream } from "node:fs";
-import { readdir, stat, access } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { readdir, readFile, stat, access } from "node:fs/promises";
+import { resolve, join, dirname } from "node:path";
 import { pipeline } from "node:stream/promises";
 
 import { imageSize } from "image-size";
@@ -245,4 +245,36 @@ export async function createTarball(sourceDir: string, outputPath: string): Prom
 	const gzip = createGzip({ level: 9 });
 	const out = createWriteStream(outputPath);
 	await pipeline(tarStream, gzip, out);
+}
+
+// ── Mobile source packaging ─────────────────────────────────────────────────
+
+/**
+ * Package a plugin's mobile source directory into a gzipped tarball.
+ * Looks for the ./mobile export in package.json to find the source root,
+ * then packages everything under that directory.
+ */
+export async function packageMobileSource(
+	pluginDir: string,
+	outputDir: string,
+): Promise<string | undefined> {
+	const pkgPath = join(pluginDir, "package.json");
+	if (!(await fileExists(pkgPath))) return undefined;
+
+	const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+	const mobileExport = pkg.exports?.["./mobile"];
+	if (!mobileExport) return undefined;
+
+	const entryPath =
+		typeof mobileExport === "string" ? mobileExport : (mobileExport.import ?? mobileExport.default);
+	if (!entryPath) return undefined;
+
+	const entryResolved = resolve(pluginDir, entryPath);
+	const mobileDir = dirname(entryResolved);
+
+	if (!(await fileExists(mobileDir))) return undefined;
+
+	const outputPath = join(outputDir, "mobile.tgz");
+	await createTarball(mobileDir, outputPath);
+	return outputPath;
 }

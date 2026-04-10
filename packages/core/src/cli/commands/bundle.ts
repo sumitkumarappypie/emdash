@@ -30,6 +30,7 @@ import {
 	resolveSourceEntry,
 	calculateDirectorySize,
 	createTarball,
+	packageMobileSource,
 	MAX_BUNDLE_SIZE,
 	MAX_SCREENSHOTS,
 	MAX_SCREENSHOT_WIDTH,
@@ -488,6 +489,19 @@ export const bundleCommand = defineCommand({
 
 					consola.success(`Included ${screenshotFiles.length} screenshot(s)`);
 				}
+			}
+
+			// ── Package mobile source (if plugin exports ./mobile) ──────────
+			const mobileTgzPath = await packageMobileSource(pluginDir, bundleDir);
+			if (mobileTgzPath) {
+				const mobileStat = await stat(mobileTgzPath);
+				if (mobileStat.size > MAX_BUNDLE_SIZE) {
+					consola.error(
+						`Mobile source too large: ${mobileStat.size} bytes (max ${MAX_BUNDLE_SIZE})`,
+					);
+					process.exit(1);
+				}
+				consola.success("Included mobile.tgz");
 			}
 
 			// ── Step 7: Validation ──
