@@ -122,6 +122,76 @@ describe("normalizeManifestRoute", () => {
 	});
 });
 
+describe("pluginManifestSchema — mobile config", () => {
+	it("should accept manifest without mobile field", () => {
+		const result = pluginManifestSchema.safeParse(makeManifest({}));
+		expect(result.success).toBe(true);
+	});
+
+	it("should accept manifest with valid native mobile config", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mobile: {
+				native: true,
+				label: "Shop",
+				icon: "shopping-bag",
+				supportsCart: true,
+				cartScreen: "commerce:cart",
+				cartBadgeKey: "cartCount",
+				tabs: [
+					{
+						key: "shop",
+						label: "Shop",
+						icon: "shopping-bag",
+						screen: "commerce:product-list",
+					},
+					{
+						key: "cart",
+						label: "Cart",
+						icon: "shopping-cart",
+						screen: "commerce:cart",
+						badge: "cartCount",
+					},
+				],
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should accept manifest with entryUrl (WebView) mobile config", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mobile: {
+				native: false,
+				entryUrl: "https://plugin.example.com/mobile",
+				label: "My Plugin",
+				icon: "puzzle",
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should reject manifest with invalid tab (missing required fields)", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mobile: {
+				tabs: [{ key: "shop", label: "Shop" }],
+			},
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("should reject manifest with tab containing empty strings", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mobile: {
+				tabs: [{ key: "", label: "Shop", icon: "bag", screen: "commerce:list" }],
+			},
+		});
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("pluginManifestSchema — storage index field names", () => {
 	it("should accept valid simple index field names", () => {
 		const result = pluginManifestSchema.safeParse(

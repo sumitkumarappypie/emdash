@@ -148,6 +148,7 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 			pages: plugin.admin.pages,
 			widgets: plugin.admin.widgets,
 		},
+		mobile: plugin.mobile,
 	};
 }
 

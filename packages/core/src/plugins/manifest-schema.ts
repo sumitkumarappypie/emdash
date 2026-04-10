@@ -10,6 +10,8 @@
 
 import { z } from "zod";
 
+import { pluginMobileConfigSchema } from "./manifest-mobile-schema.js";
+
 // ── Enum values (must stay in sync with types.ts) ───────────────
 
 export const PLUGIN_CAPABILITIES = [
@@ -203,6 +205,7 @@ export const pluginManifestSchema = z.object({
 		]),
 	),
 	admin: pluginAdminConfigSchema,
+	mobile: pluginMobileConfigSchema,
 });
 
 export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;
