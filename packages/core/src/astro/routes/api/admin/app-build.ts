@@ -83,6 +83,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				headers: {
 					Authorization: `Bearer ${ghToken}`,
 					Accept: "application/vnd.github+json",
+					"User-Agent": "EmDash-CMS",
 					"X-GitHub-Api-Version": "2022-11-28",
 				},
 				body: JSON.stringify({
