@@ -31,27 +31,9 @@ const PINNED_MODULES = {
 	"react/jsx-dev-runtime": require.resolve("react/jsx-dev-runtime", { paths: [projectRoot] }),
 };
 
-// Resolve workspace plugin mobile entries. Metro can't resolve package
-// exports through symlinks, so we resolve them manually here.
-// IMPORTANT: Use the symlink path (node_modules/), NOT the real path.
-// Metro's file watcher only tracks node_modules, not source directories
-// under watchFolders, for SHA-1 computation.
-const fs = require("fs");
-const PLUGIN_ENTRIES = {};
-const commercePath = path.resolve(projectRoot, "node_modules/@emdash-cms/plugin-commerce");
-if (fs.existsSync(commercePath)) {
-	PLUGIN_ENTRIES["@emdash-cms/plugin-commerce/mobile"] = path.join(
-		commercePath,
-		"src/mobile/index.ts",
-	);
-}
-
 config.resolver.resolveRequest = (context, moduleName, platform) => {
 	if (PINNED_MODULES[moduleName]) {
 		return { filePath: PINNED_MODULES[moduleName], type: "sourceFile" };
-	}
-	if (PLUGIN_ENTRIES[moduleName]) {
-		return { filePath: PLUGIN_ENTRIES[moduleName], type: "sourceFile" };
 	}
 	return context.resolveRequest(context, moduleName, platform);
 };

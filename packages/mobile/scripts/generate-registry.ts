@@ -1,7 +1,18 @@
-// packages/mobile/scripts/generate-registry.ts
+/**
+ * Registry Generator
+ *
+ * Called by the CI build pipeline to generate lib/registry.ts.
+ * Copies plugin mobile source files into .plugins/ (inside the project)
+ * so Metro can find and hash them without symlink issues.
+ *
+ * Usage: npx tsx scripts/generate-registry.ts
+ *
+ * Env vars:
+ *   EXPO_PUBLIC_EMDASH_URL — site URL
+ *   EMDASH_BUILD_TOKEN     — auth token for /app/build-config
+ */
 
-import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { cpSync, execFileSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -56,86 +67,75 @@ async function main() {
 	const { data: config } = (await configRes.json()) as { data: BuildConfig };
 
 	const mobileDir = resolve(__dirname, "..");
+	const monorepoRoot = resolve(mobileDir, "../..");
 	const pluginsDir = join(mobileDir, ".plugins");
 
 	// Clean previous plugin extracts
 	if (existsSync(pluginsDir)) rmSync(pluginsDir, { recursive: true });
 	mkdirSync(pluginsDir, { recursive: true });
 
-	// Download and extract mobile.tgz for marketplace native plugins
 	const nativePlugins = config.plugins.filter((p) => p.native);
 
 	for (const plugin of nativePlugins) {
-		console.log(`Downloading mobile bundle for ${plugin.id}@${plugin.version}...`);
+		const pluginDir = join(pluginsDir, plugin.id);
+		console.log(`Setting up mobile source for ${plugin.id}@${plugin.version}...`);
 
-		// Try to get mobile bundle from site (marketplace plugins store it in R2)
+		// Try marketplace download first
 		const bundleUrl = `${SITE_URL}/_emdash/api/plugins/${plugin.id}/mobile-bundle`;
 		const res = await fetch(bundleUrl, {
 			headers: { Authorization: `Bearer ${BUILD_TOKEN}` },
 		});
 
-		if (!res.ok) {
-			// Configured plugins don't have downloadable mobile bundles — they're in node_modules
-			console.log(`  Skipping download for ${plugin.id} (configured plugin, using workspace)`);
-			continue;
+		if (res.ok) {
+			// Marketplace plugin — extract tarball
+			mkdirSync(pluginDir, { recursive: true });
+			const tgzPath = join(pluginsDir, `${plugin.id}.tgz`);
+			const buffer = Buffer.from(await res.arrayBuffer());
+			writeFileSync(tgzPath, buffer);
+			execFileSync("tar", ["-xzf", tgzPath, "-C", pluginDir], { stdio: "inherit" });
+			rmSync(tgzPath);
+			console.log(`  Extracted marketplace mobile source`);
+		} else {
+			// Workspace plugin — copy source files directly into .plugins/
+			// This avoids all symlink/hoisting issues with Metro's file watcher
+			const workspaceMobileDir = join(
+				monorepoRoot,
+				"packages/plugins",
+				plugin.id,
+				"src/mobile",
+			);
+			if (existsSync(workspaceMobileDir)) {
+				cpSync(workspaceMobileDir, pluginDir, { recursive: true });
+				console.log(`  Copied workspace mobile source from ${workspaceMobileDir}`);
+			} else {
+				console.warn(`  WARNING: No mobile source found for ${plugin.id}`);
+			}
 		}
-
-		const pluginDir = join(pluginsDir, plugin.id);
-		mkdirSync(pluginDir, { recursive: true });
-
-		const tgzPath = join(pluginsDir, `${plugin.id}.tgz`);
-		const buffer = Buffer.from(await res.arrayBuffer());
-		writeFileSync(tgzPath, buffer);
-
-		// Extract tarball safely using execFileSync (no shell injection)
-		execFileSync("tar", ["-xzf", tgzPath, "-C", pluginDir], { stdio: "inherit" });
-		rmSync(tgzPath);
-		console.log(`  Extracted ${plugin.id} mobile source to ${pluginDir}`);
 	}
 
-	// Generate registry.ts only if there are marketplace plugins to add.
-	// Configured (workspace) plugins are already in the committed registry.ts
-	// and their babel aliases resolve correctly. Only overwrite if we have
-	// extracted marketplace plugins that need new imports.
-	const marketplacePlugins = nativePlugins.filter((p) =>
-		existsSync(join(pluginsDir, p.id)),
-	);
+	// Always generate registry.ts — all plugins import from .plugins/
+	const imports: string[] = [];
+	const spreads: string[] = [];
+	const initCases: string[] = [];
 
-	if (marketplacePlugins.length === 0) {
-		console.log("No marketplace native plugins to add — keeping existing registry.ts");
-	} else {
-		const imports: string[] = [];
-		const spreads: string[] = [];
-		const initCases: string[] = [];
+	for (const plugin of nativePlugins) {
+		const pluginDir = join(pluginsDir, plugin.id);
+		if (!existsSync(pluginDir)) continue;
 
-		for (const plugin of nativePlugins) {
-			const pluginDir = join(pluginsDir, plugin.id);
-			const hasExtracted =
-				existsSync(pluginDir) &&
-				(existsSync(join(pluginDir, "index.ts")) || existsSync(join(pluginDir, "index.js")));
-			const alias = plugin.id.replace(DASH_RE, "_");
-			const capAlias = capitalize(alias);
+		const alias = plugin.id.replace(DASH_RE, "_");
+		const capAlias = capitalize(alias);
 
-			if (hasExtracted) {
-				// Marketplace plugin — import from extracted .plugins directory
-				imports.push(
-					`import { screens as ${alias}Screens, configure${capAlias}Api } from "../.plugins/${plugin.id}/index.js";`,
-				);
-			} else {
-				// Configured plugin — import from node_modules via workspace
-				const pkgName = `@emdash-cms/plugin-${plugin.id}`;
-				imports.push(
-					`import { screens as ${alias}Screens, configure${capAlias}Api } from "${pkgName}/mobile";`,
-				);
-			}
+		// All plugins import from .plugins/ — consistent, no symlinks
+		imports.push(
+			`import { screens as ${alias}Screens, configure${capAlias}Api } from "../.plugins/${plugin.id}/index";`,
+		);
+		spreads.push(`\t...${alias}Screens,`);
+		initCases.push(
+			`\tif (pluginId === "${plugin.id}") configure${capAlias}Api({ baseUrl, getAuthToken });`,
+		);
+	}
 
-			spreads.push(`\t...${alias}Screens,`);
-			initCases.push(
-				`\tif (pluginId === "${plugin.id}") configure${capAlias}Api({ baseUrl, getAuthToken });`,
-			);
-		}
-
-		const registryContent = `// AUTO-GENERATED by scripts/generate-registry.ts — do not edit manually
+	const registryContent = `// AUTO-GENERATED by scripts/generate-registry.ts — do not edit manually
 import type { ComponentType } from "react";
 
 ${imports.join("\n")}
@@ -167,10 +167,9 @@ ${initCases.length > 0 ? initCases.join("\n") : "\t// No native plugins to initi
 }
 `;
 
-		const registryPath = join(mobileDir, "lib", "registry.ts");
-		writeFileSync(registryPath, registryContent);
-		console.log(`Generated ${registryPath} with ${nativePlugins.length} native plugin(s)`);
-	}
+	const registryPath = join(mobileDir, "lib", "registry.ts");
+	writeFileSync(registryPath, registryContent);
+	console.log(`Generated ${registryPath} with ${nativePlugins.length} native plugin(s)`);
 
 	// Write branding env vars for app.config.ts
 	const envContent = [

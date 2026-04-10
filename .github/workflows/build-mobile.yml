@@ -85,13 +85,6 @@ jobs:
 
       - run: pnpm install
 
-      - name: Symlink commerce plugin source for Metro
-        run: |
-          mkdir -p packages/mobile/node_modules/@emdash-cms
-          if [ ! -e packages/mobile/node_modules/@emdash-cms/plugin-commerce ]; then
-            ln -s ../../../plugins/commerce packages/mobile/node_modules/@emdash-cms/plugin-commerce
-          fi
-
       - name: Load build env
         working-directory: packages/mobile
         run: |
@@ -133,13 +126,6 @@ jobs:
         run: echo "node-linker=hoisted" >> .npmrc
 
       - run: pnpm install
-
-      - name: Symlink commerce plugin source for Metro
-        run: |
-          mkdir -p packages/mobile/node_modules/@emdash-cms
-          if [ ! -e packages/mobile/node_modules/@emdash-cms/plugin-commerce ]; then
-            ln -s ../../../plugins/commerce packages/mobile/node_modules/@emdash-cms/plugin-commerce
-          fi
 
       - name: Load build env
         working-directory: packages/mobile
