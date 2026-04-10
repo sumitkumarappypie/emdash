@@ -31,15 +31,19 @@ const PINNED_MODULES = {
 	"react/jsx-dev-runtime": require.resolve("react/jsx-dev-runtime", { paths: [projectRoot] }),
 };
 
-// Resolve workspace plugin mobile entries to absolute paths.
-// The babel alias + Metro relative path resolution breaks for files in subdirectories.
-// Using resolveRequest with absolute paths works regardless of the importing file's location.
-const PLUGIN_MOBILE_ENTRIES = {
-	"@emdash-cms/plugin-commerce/mobile": path.resolve(
-		monorepoRoot,
-		"packages/plugins/commerce/src/mobile/index.ts",
-	),
-};
+// Resolve workspace plugin mobile entries via require.resolve so Metro
+// gets paths through node_modules that its file watcher already indexes.
+// Direct absolute paths to source files cause SHA-1 errors because Metro's
+// watcher doesn't track them even when they're under watchFolders.
+const PLUGIN_MOBILE_ENTRIES = {};
+try {
+	PLUGIN_MOBILE_ENTRIES["@emdash-cms/plugin-commerce/mobile"] = require.resolve(
+		"@emdash-cms/plugin-commerce/mobile",
+		{ paths: [projectRoot, monorepoRoot] },
+	);
+} catch {
+	// Plugin not installed — skip
+}
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
 	if (PINNED_MODULES[moduleName]) {
