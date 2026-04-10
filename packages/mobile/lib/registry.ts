@@ -1,13 +1,11 @@
-// Use direct path into the package (not exports subpath) because Metro
-// has unstable_enablePackageExports disabled and can't resolve /mobile.
 import {
 	screens as commerceScreens,
 	configureCommerceApi,
 	type PluginScreenProps,
-} from "@emdash-cms/plugin-commerce/src/mobile/index";
+} from "@emdash-cms/plugin-commerce/mobile";
 import type { ComponentType } from "react";
 
-export type { PluginScreenProps } from "@emdash-cms/plugin-commerce/src/mobile/index";
+export type { PluginScreenProps } from "@emdash-cms/plugin-commerce/mobile";
 
 const screenRegistry: Record<string, ComponentType<PluginScreenProps>> = {
 	...commerceScreens,

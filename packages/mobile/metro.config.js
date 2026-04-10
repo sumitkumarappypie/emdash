@@ -11,7 +11,7 @@ config.watchFolders = [monorepoRoot];
 
 // pnpm uses symlinks
 config.resolver.unstable_enableSymlinks = true;
-config.resolver.unstable_enablePackageExports = false;
+config.resolver.unstable_enablePackageExports = true;
 
 // Search mobile's node_modules first, then monorepo root
 config.resolver.nodeModulesPaths = [
