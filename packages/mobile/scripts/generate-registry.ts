@@ -2,7 +2,10 @@
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SITE_URL = process.env.EXPO_PUBLIC_EMDASH_URL;
 const BUILD_TOKEN = process.env.EMDASH_BUILD_TOKEN;
@@ -52,7 +55,7 @@ async function main() {
 	}
 	const { data: config } = (await configRes.json()) as { data: BuildConfig };
 
-	const mobileDir = resolve(import.meta.dirname, "..");
+	const mobileDir = resolve(__dirname, "..");
 	const pluginsDir = join(mobileDir, ".plugins");
 
 	// Clean previous plugin extracts
