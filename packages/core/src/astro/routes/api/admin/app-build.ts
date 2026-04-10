@@ -15,6 +15,22 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { AppBrandingRepository } from "#db/repositories/app-branding.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
+/**
+ * Get environment variable from Cloudflare Workers env or import.meta.env.
+ * Astro v6 removed locals.runtime.env — use cloudflare:workers import instead.
+ */
+async function getEnvVar(name: string): Promise<string> {
+	try {
+		// @ts-ignore -- cloudflare:workers is a virtual module only available in CF runtime
+		const { env } = await import("cloudflare:workers");
+		if (env?.[name]) return String(env[name]);
+	} catch {
+		// Not running on Cloudflare
+	}
+	// @ts-ignore
+	return String(import.meta.env[name] ?? "");
+}
+
 const buildSchema = z.object({
 	platform: z.enum(["android", "ios", "both"]),
 });
@@ -45,8 +61,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		const { platform } = body;
 
-		const ghToken = import.meta.env.EMDASH_GITHUB_TOKEN || import.meta.env.GITHUB_TOKEN || "";
-		const ghRepo = import.meta.env.EMDASH_GITHUB_REPO || import.meta.env.GITHUB_REPO || "";
+		const ghToken = (await getEnvVar("EMDASH_GITHUB_TOKEN")) || (await getEnvVar("GITHUB_TOKEN"));
+		const ghRepo = (await getEnvVar("EMDASH_GITHUB_REPO")) || (await getEnvVar("GITHUB_REPO"));
 
 		if (!ghToken || !ghRepo) {
 			return apiError(

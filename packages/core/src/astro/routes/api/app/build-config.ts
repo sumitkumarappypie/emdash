@@ -12,54 +12,74 @@ export const prerender = false;
 
 import type { APIRoute } from "astro";
 
-import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { apiError, handleError } from "#api/error.js";
 import { AppBrandingRepository } from "#db/repositories/app-branding.js";
 
 import { getSiteSettingsWithDb } from "../../../../settings/index.js";
 
-export const GET: APIRoute = async ({ request, locals }) => {
-	const { emdash } = locals;
-	if (!emdash?.db) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-
-	// Authenticate via bearer token
-	const buildToken =
-		// @ts-ignore -- import.meta.env may not be typed
-		import.meta.env.EMDASH_BUILD_TOKEN || import.meta.env.BUILD_TOKEN || "";
-
-	if (!buildToken) {
-		return apiError("NOT_CONFIGURED", "Build token is not configured", 500);
-	}
-
-	const authHeader = request.headers.get("Authorization");
-	const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
-	if (!token || token !== buildToken) {
-		return apiError("UNAUTHORIZED", "Invalid or missing build token", 401);
-	}
-
+/**
+ * Get environment variable from Cloudflare Workers env or import.meta.env.
+ * Astro v6 removed locals.runtime.env — use cloudflare:workers import instead.
+ */
+async function getEnvVar(name: string): Promise<string> {
 	try {
+		// @ts-ignore -- cloudflare:workers is a virtual module only available in CF runtime
+		const { env } = await import("cloudflare:workers");
+		if (env?.[name]) return String(env[name]);
+	} catch {
+		// Not running on Cloudflare — fall through to import.meta.env
+	}
+	// @ts-ignore -- import.meta.env may not be typed
+	return String(import.meta.env[name] ?? "");
+}
+
+export const GET: APIRoute = async ({ request, locals }) => {
+	try {
+		const { emdash } = locals;
+		if (!emdash?.db) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+
+		// Authenticate via bearer token
+		const buildToken = (await getEnvVar("EMDASH_BUILD_TOKEN")) || (await getEnvVar("BUILD_TOKEN"));
+
+		if (!buildToken) {
+			return apiError("NOT_CONFIGURED", "Build token is not configured", 500);
+		}
+
+		const authHeader = request.headers.get("Authorization");
+		const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+		if (!token || token !== buildToken) {
+			return apiError("UNAUTHORIZED", "Invalid or missing build token", 401);
+		}
+
 		const repo = new AppBrandingRepository(emdash.db);
 		const branding = await repo.get();
 
 		const settings = await getSiteSettingsWithDb(emdash.db);
 
 		// Get all enabled plugins with mobile config
-		const allPlugins = emdash.getAllMobilePlugins();
+		const allPlugins =
+			typeof emdash.getAllMobilePlugins === "function" ? emdash.getAllMobilePlugins() : [];
 		const plugins = allPlugins
-			.filter((p) => emdash.isPluginEnabled(p.id))
+			.filter((p) =>
+				typeof emdash.isPluginEnabled === "function" ? emdash.isPluginEnabled(p.id) : true,
+			)
 			.map((p) => ({
 				id: p.id,
 				name: p.name,
 				version: p.version,
 			}));
 
-		return apiSuccess({
-			branding,
-			site: {
-				name: settings.title ?? "EmDash",
-				url: settings.url ?? "",
+		return Response.json({
+			success: true,
+			data: {
+				branding,
+				site: {
+					name: settings.title ?? "EmDash",
+					url: settings.url ?? "",
+				},
+				plugins,
 			},
-			plugins,
 		});
 	} catch (error) {
 		return handleError(error, "Failed to build config", "BUILD_CONFIG_ERROR");
