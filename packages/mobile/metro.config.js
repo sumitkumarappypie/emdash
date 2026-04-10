@@ -23,16 +23,12 @@ config.resolver.nodeModulesPaths = [
 // The monorepo also has React 19 (for the admin SPA). Without this,
 // pnpm hoisting causes expo-router and other deps to resolve React 19,
 // producing "Objects are not valid as a React child" at runtime.
+// Use require.resolve to find the actual file regardless of node_modules layout
+// (works with both pnpm strict symlinks and hoisted node_modules in CI).
 const PINNED_MODULES = {
-	react: path.resolve(projectRoot, "node_modules/react/index.js"),
-	"react/jsx-runtime": path.resolve(
-		projectRoot,
-		"node_modules/react/jsx-runtime.js",
-	),
-	"react/jsx-dev-runtime": path.resolve(
-		projectRoot,
-		"node_modules/react/jsx-dev-runtime.js",
-	),
+	react: require.resolve("react", { paths: [projectRoot] }),
+	"react/jsx-runtime": require.resolve("react/jsx-runtime", { paths: [projectRoot] }),
+	"react/jsx-dev-runtime": require.resolve("react/jsx-dev-runtime", { paths: [projectRoot] }),
 };
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
