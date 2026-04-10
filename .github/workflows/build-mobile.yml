@@ -86,6 +86,16 @@ jobs:
 
       - run: pnpm install
 
+      - name: Debug files
+        working-directory: packages/mobile
+        run: |
+          echo "=== ls _plugins/ ==="
+          ls -laR _plugins/ 2>/dev/null || echo "NOT FOUND"
+          echo "=== ls lib/registry.ts ==="
+          head -5 lib/registry.ts
+          echo "=== find _plugins ==="
+          find . -path './_plugins*' -type f 2>/dev/null | head -20 || echo "NONE"
+
       - name: Load build env
         working-directory: packages/mobile
         run: |
