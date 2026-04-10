@@ -420,6 +420,8 @@ describe("Marketplace handlers", () => {
 				),
 			);
 			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			// Mobile bundle download — return 404 (no mobile bundle)
+			fetchSpy.mockResolvedValueOnce(new Response(null, { status: 404 }));
 			fetchSpy.mockResolvedValueOnce(new Response("OK", { status: 200 }));
 
 			const result = await handleMarketplaceInstall(
@@ -626,6 +628,8 @@ describe("Marketplace handlers", () => {
 			detail.latestVersion!.checksum = "";
 			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
 			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			// Mobile bundle download — return 404 (no mobile bundle)
+			fetchSpy.mockResolvedValueOnce(new Response(null, { status: 404 }));
 
 			const result = await handleMarketplaceUpdate(
 				db,

@@ -1172,6 +1172,12 @@ export interface PluginMobileConfig {
 	icon?: string;
 	/** Tab contributions to the mobile app navigation */
 	tabs?: PluginMobileTab[];
+	/** Whether this plugin has cart functionality */
+	supportsCart?: boolean;
+	/** Screen identifier for the plugin's cart (e.g., "commerce:cart") */
+	cartScreen?: string;
+	/** Key in plugin state for cart badge count */
+	cartBadgeKey?: string;
 }
 
 /**
@@ -1329,6 +1335,7 @@ export interface StandardPluginDefinition {
 	hooks?: Record<string, any>;
 	// eslint-disable-next-line typescript-eslint/no-explicit-any -- must accept handlers with specific event/route types
 	routes?: Record<string, any>;
+	mobile?: PluginMobileConfig;
 }
 
 /**
