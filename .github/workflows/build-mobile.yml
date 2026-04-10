@@ -80,6 +80,9 @@ jobs:
           name: generated-files
           path: packages/mobile/
 
+      - name: Use hoisted node_modules for React Native
+        run: echo "node-linker=hoisted" >> .npmrc
+
       - run: pnpm install
 
       - name: Load build env
@@ -118,6 +121,9 @@ jobs:
         with:
           name: generated-files
           path: packages/mobile/
+
+      - name: Use hoisted node_modules for React Native
+        run: echo "node-linker=hoisted" >> .npmrc
 
       - run: pnpm install
 
