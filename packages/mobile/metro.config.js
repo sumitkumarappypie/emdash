@@ -32,14 +32,16 @@ const PINNED_MODULES = {
 };
 
 // Resolve workspace plugin mobile entries. Metro can't resolve package
-// exports through symlinks reliably, so we resolve them manually here.
+// exports through symlinks, so we resolve them manually here.
+// IMPORTANT: Use the symlink path (node_modules/), NOT the real path.
+// Metro's file watcher only tracks node_modules, not source directories
+// under watchFolders, for SHA-1 computation.
 const fs = require("fs");
 const PLUGIN_ENTRIES = {};
 const commercePath = path.resolve(projectRoot, "node_modules/@emdash-cms/plugin-commerce");
 if (fs.existsSync(commercePath)) {
-	const realPath = fs.realpathSync(commercePath);
 	PLUGIN_ENTRIES["@emdash-cms/plugin-commerce/mobile"] = path.join(
-		realPath,
+		commercePath,
 		"src/mobile/index.ts",
 	);
 }
